@@ -32,6 +32,8 @@ class LveTexture : public backend::RenderTexture {
   VkDescriptorImageInfo getImageInfo() const { return mDescriptor; }
   VkImageLayout getImageLayout() const { return mTextureLayout; }
   VkExtent3D getExtent() const { return mExtent; }
+  uint32_t getWidth() const override { return mExtent.width; }
+  uint32_t getHeight() const override { return mExtent.height; }
   VkFormat getFormat() const { return mFormat; }
 
   void updateDescriptor();

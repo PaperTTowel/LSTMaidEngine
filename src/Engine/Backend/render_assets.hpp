@@ -5,6 +5,7 @@
 
 #include <glm/glm.hpp>
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -15,6 +16,9 @@ namespace lve::backend {
   class RenderTexture {
   public:
     virtual ~RenderTexture() = default;
+
+    virtual std::uint32_t getWidth() const = 0;
+    virtual std::uint32_t getHeight() const = 0;
   };
 
   class RenderMaterial {

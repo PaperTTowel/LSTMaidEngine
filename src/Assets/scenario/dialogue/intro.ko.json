@@ -1,0 +1,20 @@
+[
+  {
+    "speaker": "이름1",
+    "character": "Name1",
+    "pose": "normal",
+    "slot": "center",
+    "text": "테스트 테스트 테스트 hello world 1234567890 !@#$%^&*()"
+  },
+  {
+    "speaker": "나",
+    "text": "가나다라마바사 ㅗ저ㅏ롬저ㅏㅊㄱ무ㅗㄴ얄"
+  },
+  {
+    "speaker": "이름1",
+    "character": "Name1",
+    "pose": "worried",
+    "slot": "center",
+    "text": "5743080925yewtruouiyewtrh9873g549873gt4t4yohetrgyuoietrnyuoig"
+  }
+]

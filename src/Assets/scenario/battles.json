@@ -1,0 +1,24 @@
+{
+  "battles": {
+    "slime_test": {
+      "party": [
+        {
+          "id": "hero",
+          "displayName": "나",
+          "maxHp": 100,
+          "attack": 18,
+          "defense": 3
+        }
+      ],
+      "enemies": [
+        {
+          "id": "slime",
+          "displayName": "슬라임",
+          "maxHp": 45,
+          "attack": 8,
+          "defense": 1
+        }
+      ]
+    }
+  }
+}

@@ -34,27 +34,28 @@ void LveSwapChain::init() {
 }
 
 LveSwapChain::~LveSwapChain() {
+  for (auto framebuffer : swapChainFramebuffers) {
+    vkDestroyFramebuffer(device.device(), framebuffer, nullptr);
+  }
+  swapChainFramebuffers.clear();
+
   for (auto imageView : swapChainImageViews) {
     vkDestroyImageView(device.device(), imageView, nullptr);
   }
   swapChainImageViews.clear();
 
-  if (swapChain != nullptr) {
-    vkDestroySwapchainKHR(device.device(), swapChain, nullptr);
-    swapChain = nullptr;
-  }
-
-  for (int i = 0; i < depthImages.size(); i++) {
+  for (size_t i = 0; i < depthImages.size(); i++) {
     vkDestroyImageView(device.device(), depthImageViews[i], nullptr);
     vkDestroyImage(device.device(), depthImages[i], nullptr);
     vkFreeMemory(device.device(), depthImageMemorys[i], nullptr);
   }
 
-  for (auto framebuffer : swapChainFramebuffers) {
-    vkDestroyFramebuffer(device.device(), framebuffer, nullptr);
-  }
-
   vkDestroyRenderPass(device.device(), renderPass, nullptr);
+
+  if (swapChain != nullptr) {
+    vkDestroySwapchainKHR(device.device(), swapChain, nullptr);
+    swapChain = nullptr;
+  }
 
   // cleanup synchronization objects
   for (size_t i = 0; i < imageAvailableSemaphores.size(); i++) {

@@ -1,7 +1,7 @@
 #include "Game/UI/hud_overlay.hpp"
 
 #include "Engine/camera.hpp"
-#include "Game/player_controller.hpp"
+#include "Game/Platform/player_controller.hpp"
 #include "utils/game_object.hpp"
 
 #include <imgui.h>

@@ -18,6 +18,7 @@ namespace lve::backend {
     J,
     K,
     F3,
+    V,
     U,
     I,
     Y,

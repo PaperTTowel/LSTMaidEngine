@@ -1,0 +1,65 @@
+{
+  "start": "intro",
+  "nodes": {
+    "intro": [
+      {
+        "type": "background",
+        "image": "Assets/textures/background/bg1.jpg"
+      },
+      {
+        "type": "dialogue",
+        "file": "Assets/scenario/dialogue/intro.ko.json"
+      },
+      {
+        "type": "background",
+        "image": "Assets/textures/background/bg2.jpg"
+      },
+      {
+        "type": "choice",
+        "choices": [
+          {
+            "text": "주변을 살펴본다",
+            "goto": "look_around"
+          },
+          {
+            "text": "전투 테스트를 시작한다",
+            "goto": "battle_test"
+          }
+        ]
+      }
+    ],
+    "look_around": [
+      {
+        "type": "background",
+        "image": "Assets/textures/background/bg1.jpg"
+      },
+      {
+        "type": "say",
+        "speaker": "나",
+        "text": "아직은 조용하다. 하지만 곧 무언가 시작될 것 같다."
+      }
+    ],
+    "battle_test": [
+      {
+        "type": "battle",
+        "enemy": "slime_test",
+        "win": "battle_win",
+        "lose": "battle_lose"
+      }
+    ],
+    "battle_win": [
+      {
+        "type": "say",
+        "speaker": "나",
+        "text": "좋아, 전투 흐름은 확인됐다."
+      }
+    ],
+    "battle_lose": [
+      {
+        "type": "say",
+        "speaker": "나",
+        "text": "다시 준비해서 도전하자."
+      }
+    ]
+  }
+}

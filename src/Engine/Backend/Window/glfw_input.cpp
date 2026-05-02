@@ -13,6 +13,7 @@ namespace lve::backend {
       case KeyCode::J: return GLFW_KEY_J;
       case KeyCode::K: return GLFW_KEY_K;
       case KeyCode::F3: return GLFW_KEY_F3;
+      case KeyCode::V: return GLFW_KEY_V;
       case KeyCode::U: return GLFW_KEY_U;
       case KeyCode::I: return GLFW_KEY_I;
       case KeyCode::Y: return GLFW_KEY_Y;

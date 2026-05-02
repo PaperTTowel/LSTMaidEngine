@@ -5,8 +5,11 @@
 #include "Engine/Backend/Factory/runtime_backend_factory.hpp"
 #include "Engine/audio_system.hpp"
 #include "Engine/scene_system.hpp"
+#include "Game/RPGBattle/battle_overlay.hpp"
 #include "Game/UI/hud_overlay.hpp"
-#include "Game/player_controller.hpp"
+#include "Game/Platform/player_controller.hpp"
+#include "Game/VisualNovel/scenario_loader.hpp"
+#include "Game/VisualNovel/visual_novel_overlay.hpp"
 
 // libs
 #define GLM_FORCE_RADIANS
@@ -64,11 +67,17 @@ namespace lve {
       float displayDurationSeconds{5.0f};
     };
 
+    struct ScenarioConfig {
+      const char *runtimeScenarioPath{"Assets/scenario/main.json"};
+      const char *sourceScenarioPath{"src/Assets/scenario/main.json"};
+    };
+
     const FrameConfig kFrameConfig{};
     const CameraConfig kCameraConfig{};
     const GameplayConfig kGameplayConfig{};
     const AudioConfig kAudioConfig{};
     const SignConfig kSignConfig{};
+    const ScenarioConfig kScenarioConfig{};
 
     std::unique_ptr<backend::RuntimeBackend> createRuntime() {
       backend::RuntimeBackendConfig config{};
@@ -130,6 +139,310 @@ namespace lve {
 
   EngineLoop::~EngineLoop() {
     audioSystem.shutdown();
+  }
+
+  void EngineLoop::setGameMode(GameMode nextMode) {
+    if (activeGameMode == nextMode) {
+      return;
+    }
+    activeGameMode = nextMode;
+  }
+
+  const char *EngineLoop::getGameModeName() const {
+    switch (activeGameMode) {
+      case GameMode::VisualNovel: return "VisualNovel";
+      case GameMode::Battle: return "Battle";
+      case GameMode::Platform:
+      default: return "Platform";
+    }
+  }
+
+  bool EngineLoop::loadVisualNovelScenario() {
+    std::string error;
+    if (visualNovelSystem.loadScenario(kScenarioConfig.runtimeScenarioPath, &error)) {
+      return true;
+    }
+    std::cerr << "Failed to load runtime scenario: " << error << "\n";
+
+    error.clear();
+    if (visualNovelSystem.loadScenario(kScenarioConfig.sourceScenarioPath, &error)) {
+      return true;
+    }
+    std::cerr << "Failed to load source scenario: " << error << "\n";
+    return false;
+  }
+
+  void EngineLoop::updateModeShortcuts(backend::InputProvider &input) {
+    const bool modeKeyDown = input.isKeyPressed(backend::KeyCode::V);
+    if (modeKeyDown && !modeSwitchKeyHeld) {
+      if (activeGameMode == GameMode::Platform) {
+        if (visualNovelSystem.isLoaded()) {
+          setGameMode(GameMode::VisualNovel);
+        } else if (loadVisualNovelScenario()) {
+          activeDialogueLines.clear();
+          activeDialogueLineIndex = 0;
+          setGameMode(GameMode::VisualNovel);
+        }
+      } else {
+        setGameMode(GameMode::Platform);
+      }
+    }
+    modeSwitchKeyHeld = modeKeyDown;
+  }
+
+  bool EngineLoop::consumeVisualNovelAdvance(backend::InputProvider &input) {
+    const bool advanceDown =
+      input.isKeyPressed(backend::KeyCode::Space) ||
+      input.isMouseButtonPressed(backend::MouseButton::Left);
+    const bool pressed = advanceDown && !visualNovelAdvanceHeld;
+    visualNovelAdvanceHeld = advanceDown;
+    return pressed;
+  }
+
+  const game::vn::DialogueLine *EngineLoop::getActiveDialogueLine() const {
+    if (activeDialogueLineIndex >= activeDialogueLines.size()) {
+      return nullptr;
+    }
+    return &activeDialogueLines[activeDialogueLineIndex];
+  }
+
+  game::battle::BattleDefinition EngineLoop::makeDefaultBattleDefinition(const std::string &enemyId) const {
+    game::battle::BattleDefinition definition{};
+    definition.id = enemyId.empty() ? "default" : enemyId;
+    definition.party.push_back({"hero", "나", 100, 18, 3});
+    definition.enemies.push_back({enemyId.empty() ? "slime" : enemyId, "슬라임", 45, 8, 1});
+    return definition;
+  }
+
+  void EngineLoop::startBattleFromCommand(const game::vn::ScenarioCommand &command) {
+    battleWinNode = command.winNode;
+    battleLoseNode = command.loseNode;
+    battleSystem.start(makeDefaultBattleDefinition(command.enemy));
+    setGameMode(GameMode::Battle);
+  }
+
+  void EngineLoop::setVisualNovelBackground(SceneSystem &sceneSystem, const std::string &imagePath) {
+    if (imagePath.empty()) {
+      return;
+    }
+
+    auto texture = sceneSystem.loadTextureCached(imagePath);
+    if (!texture) {
+      std::cerr << "Failed to load visual novel background: " << imagePath << "\n";
+      return;
+    }
+
+    LveGameObject *background = hasVisualNovelBackground
+      ? sceneSystem.findObject(visualNovelBackgroundId)
+      : nullptr;
+    if (!background) {
+      auto &created = sceneSystem.createTileSpriteObject(
+        {0.f, 0.f, 0.5f},
+        texture,
+        1,
+        1,
+        0,
+        0,
+        {1.f, 1.f, 1.f},
+        -100000);
+      created.name = "VN.Background";
+      created.enableTextureType = 1;
+      created.transformDirty = true;
+      visualNovelBackgroundId = created.getId();
+      hasVisualNovelBackground = true;
+      return;
+    }
+
+    background->diffuseMap = texture;
+    background->enableTextureType = 1;
+    background->atlasColumns = 1;
+    background->atlasRows = 1;
+    background->spriteState = {};
+    background->spriteState.frameCount = 1;
+    background->hasSpriteState = true;
+    background->currentFrame = 0;
+    background->renderOrder = -100000;
+    background->transformDirty = true;
+  }
+
+  void EngineLoop::updateVisualNovelBackground(
+    SceneSystem &sceneSystem,
+    const LveCamera &gameCamera,
+    float orthoWidth,
+    float orthoHeight) {
+    if (!hasVisualNovelBackground) {
+      return;
+    }
+    auto *background = sceneSystem.findObject(visualNovelBackgroundId);
+    if (!background) {
+      hasVisualNovelBackground = false;
+      return;
+    }
+
+    const glm::vec3 cameraPos = gameCamera.getPosition();
+    float scaleWidth = orthoWidth;
+    float scaleHeight = orthoHeight;
+    if (background->diffuseMap) {
+      const auto textureWidth = background->diffuseMap->getWidth();
+      const auto textureHeight = background->diffuseMap->getHeight();
+      if (textureWidth > 0 && textureHeight > 0 && orthoWidth > 0.f && orthoHeight > 0.f) {
+        const float imageAspect = static_cast<float>(textureWidth) / static_cast<float>(textureHeight);
+        const float viewAspect = orthoWidth / orthoHeight;
+        if (viewAspect > imageAspect) {
+          scaleWidth = orthoWidth;
+          scaleHeight = orthoWidth / imageAspect;
+        } else {
+          scaleHeight = orthoHeight;
+          scaleWidth = orthoHeight * imageAspect;
+        }
+      }
+    }
+    background->transform.translation = {cameraPos.x, cameraPos.y, 0.5f};
+    background->transform.scale = {scaleWidth, scaleHeight, 1.f};
+    background->renderOrder = -100000;
+    background->transformDirty = true;
+  }
+
+  void EngineLoop::performBattleAction() {
+    if (battleSystem.getResult() != game::battle::BattleResult::Running) {
+      return;
+    }
+
+    if (battleSystem.playerAttack(0, 0) &&
+        battleSystem.getResult() == game::battle::BattleResult::Running) {
+      battleSystem.enemyTurn();
+    }
+  }
+
+  void EngineLoop::updateBattle(backend::InputProvider &input, std::string &debugText) {
+    const bool actionDown = input.isKeyPressed(backend::KeyCode::Space);
+    if (actionDown && !battleActionKeyHeld) {
+      performBattleAction();
+    }
+    battleActionKeyHeld = actionDown;
+
+    const auto result = battleSystem.getResult();
+    if (result == game::battle::BattleResult::Victory) {
+      if (!battleWinNode.empty()) {
+        std::string error;
+        visualNovelSystem.goToNode(battleWinNode, &error);
+        if (!error.empty()) {
+          std::cerr << "Battle win node error: " << error << "\n";
+        }
+      }
+      activeDialogueLines.clear();
+      activeDialogueLineIndex = 0;
+      setGameMode(GameMode::VisualNovel);
+    } else if (result == game::battle::BattleResult::Defeat) {
+      if (!battleLoseNode.empty()) {
+        std::string error;
+        visualNovelSystem.goToNode(battleLoseNode, &error);
+        if (!error.empty()) {
+          std::cerr << "Battle lose node error: " << error << "\n";
+        }
+      }
+      activeDialogueLines.clear();
+      activeDialogueLineIndex = 0;
+      setGameMode(GameMode::VisualNovel);
+    }
+
+    debugText = std::string{"Mode: "} + getGameModeName() + "\n" + battleSystem.lastLog();
+  }
+
+  void EngineLoop::updateVisualNovel(
+    backend::InputProvider &input,
+    SceneSystem &sceneSystem,
+    std::string &debugText) {
+    const bool advancePressed = consumeVisualNovelAdvance(input);
+
+    if (getActiveDialogueLine()) {
+      if (advancePressed) {
+        ++activeDialogueLineIndex;
+        if (activeDialogueLineIndex >= activeDialogueLines.size()) {
+          activeDialogueLines.clear();
+          activeDialogueLineIndex = 0;
+          std::string error;
+          visualNovelSystem.advance(&error);
+          if (!error.empty()) {
+            std::cerr << "Visual novel advance error: " << error << "\n";
+          }
+        }
+      }
+      debugText = std::string{"Mode: "} + getGameModeName();
+      return;
+    }
+
+    for (int guard = 0; guard < 32; ++guard) {
+      const auto *command = visualNovelSystem.currentCommand();
+      if (!command) {
+        debugText = std::string{"Mode: "} + getGameModeName() + "\nScenario complete";
+        return;
+      }
+
+      switch (command->type) {
+        case game::vn::ScenarioCommandType::Say:
+        case game::vn::ScenarioCommandType::Choice:
+          if (command->type == game::vn::ScenarioCommandType::Say && advancePressed) {
+            std::string error;
+            visualNovelSystem.advance(&error);
+            if (!error.empty()) {
+              std::cerr << "Visual novel advance error: " << error << "\n";
+            }
+            continue;
+          }
+          debugText = std::string{"Mode: "} + getGameModeName();
+          return;
+
+        case game::vn::ScenarioCommandType::DialogueFile: {
+          std::string error;
+          if (!game::vn::ScenarioLoader::loadDialogueFromFile(command->file, activeDialogueLines, &error)) {
+            std::cerr << "Dialogue load error: " << error << "\n";
+            activeDialogueLines.clear();
+            activeDialogueLineIndex = 0;
+            visualNovelSystem.advance(nullptr);
+            continue;
+          }
+          activeDialogueLineIndex = 0;
+          if (activeDialogueLines.empty()) {
+            visualNovelSystem.advance(nullptr);
+            continue;
+          }
+          debugText = std::string{"Mode: "} + getGameModeName();
+          return;
+        }
+
+        case game::vn::ScenarioCommandType::Battle:
+          startBattleFromCommand(*command);
+          debugText = std::string{"Mode: "} + getGameModeName();
+          return;
+
+        case game::vn::ScenarioCommandType::Goto: {
+          std::string error;
+          visualNovelSystem.advance(&error);
+          if (!error.empty()) {
+            std::cerr << "Visual novel goto error: " << error << "\n";
+          }
+          continue;
+        }
+
+        case game::vn::ScenarioCommandType::Background:
+          setVisualNovelBackground(sceneSystem, command->image);
+          visualNovelSystem.advance(nullptr);
+          continue;
+
+        case game::vn::ScenarioCommandType::ShowCharacter:
+        case game::vn::ScenarioCommandType::HideCharacter:
+        case game::vn::ScenarioCommandType::PlayBgm:
+        case game::vn::ScenarioCommandType::PlaySe:
+        case game::vn::ScenarioCommandType::SetFlag:
+        case game::vn::ScenarioCommandType::Unknown:
+        default:
+          visualNovelSystem.advance(nullptr);
+          continue;
+      }
+    }
+
+    debugText = std::string{"Mode: "} + getGameModeName();
   }
 
   void EngineLoop::initWorld(SceneSystem &sceneSystem) {
@@ -261,7 +574,7 @@ namespace lve {
       tileDebugText.clear();
     }
     std::ostringstream debugStream;
-    debugStream << "Score: " << score << "\n" << tileDebugText;
+    debugStream << "Mode: " << getGameModeName() << "\nScore: " << score << "\n" << tileDebugText;
     tileDebugText = debugStream.str();
 
     return characterPtr;
@@ -360,19 +673,47 @@ namespace lve {
     const std::string &tileDebugText,
     std::vector<LveGameObject*> &renderObjects,
     backend::CommandBufferHandle commandBuffer) {
-    backgroundSystem.update(sceneSystem, character.transform.translation, orthoWidth, orthoHeight, frameTime);
-    scoreOverlay.update(sceneSystem, gameCamera, orthoWidth, orthoHeight, score);
+    if (activeGameMode == GameMode::Platform) {
+      backgroundSystem.update(sceneSystem, character.transform.translation, orthoWidth, orthoHeight, frameTime);
+      scoreOverlay.update(sceneSystem, gameCamera, orthoWidth, orthoHeight, score);
+    }
 
     renderBackend.setWireframe(wireframeEnabled);
     renderBackend.setNormalView(normalViewEnabled);
 
     const int frameIndex = renderBackend.getFrameIndex();
+    if (activeGameMode == GameMode::VisualNovel) {
+      updateVisualNovelBackground(sceneSystem, gameCamera, orthoWidth, orthoHeight);
+    }
     sceneSystem.updateBuffers(frameIndex);
-    sceneSystem.collectObjects(renderObjects);
+    if (activeGameMode == GameMode::Platform) {
+      sceneSystem.collectObjects(renderObjects);
+      if (hasVisualNovelBackground) {
+        renderObjects.erase(
+          std::remove_if(
+            renderObjects.begin(),
+            renderObjects.end(),
+            [this](const LveGameObject *obj) {
+              return obj && obj->getId() == visualNovelBackgroundId;
+            }),
+          renderObjects.end());
+      }
+    } else {
+      renderObjects.clear();
+      if (activeGameMode == GameMode::VisualNovel) {
+        if (hasVisualNovelBackground) {
+          if (auto *background = sceneSystem.findObject(visualNovelBackgroundId)) {
+            renderObjects.push_back(background);
+          }
+        }
+      }
+    }
 
     debugUi.newFrame();
-    game::ui::drawPlayerHpBar(gameCamera, character, playerController.getStats());
-    game::ui::drawTimedMessage(activeSignMessage, activeSignMessageTimer);
+    if (activeGameMode == GameMode::Platform) {
+      game::ui::drawPlayerHpBar(gameCamera, character, playerController.getStats());
+      game::ui::drawTimedMessage(activeSignMessage, activeSignMessageTimer);
+    }
     const glm::vec3 cameraPos = gameCamera.getPosition();
     const glm::vec3 cameraRot{};
     debugUi.buildUI(
@@ -385,6 +726,26 @@ namespace lve {
       useOrthoCamera,
       playerController.getTuning(),
       showEngineStats);
+
+    if (activeGameMode == GameMode::VisualNovel) {
+      game::vn::ui::VisualNovelOverlayState overlayState{};
+      overlayState.command = visualNovelSystem.currentCommand();
+      overlayState.dialogueLine = getActiveDialogueLine();
+      overlayState.complete = visualNovelSystem.isComplete();
+      overlayState.statusText = "Space / Left Click: Next    V: Platform";
+      const int selectedChoice = game::vn::ui::drawVisualNovelOverlay(overlayState);
+      if (selectedChoice >= 0) {
+        std::string error;
+        if (!visualNovelSystem.choose(static_cast<std::size_t>(selectedChoice), &error) && !error.empty()) {
+          std::cerr << "Choice error: " << error << "\n";
+        }
+      }
+    } else if (activeGameMode == GameMode::Battle) {
+      const bool attackPressed = game::battle::ui::drawBattleOverlay(battleSystem);
+      if (attackPressed) {
+        performBattleAction();
+      }
+    }
 
     renderBackend.beginSwapChainRenderPass(commandBuffer);
     renderBackend.renderMainView(
@@ -421,6 +782,8 @@ namespace lve {
 
     while (!window.shouldClose()) {
       window.pollEvents();
+      updateModeShortcuts(input);
+
       const bool f3Down = input.isKeyPressed(backend::KeyCode::F3);
       if (f3Down && !statsToggleKeyHeld) {
         showEngineStats = !showEngineStats;
@@ -438,17 +801,32 @@ namespace lve {
 
       const float frameTime = computeClampedFrameTime(currentTime);
 
-      auto *character = updateSimulation(
-        frameTime,
-        input,
-        sceneSystem,
-        playerController,
-        spriteAnimator,
-        tileDebugText);
+      LveGameObject *character = nullptr;
+      switch (activeGameMode) {
+        case GameMode::Platform:
+          character = updateSimulation(
+            frameTime,
+            input,
+            sceneSystem,
+            playerController,
+            spriteAnimator,
+            tileDebugText);
+          break;
+        case GameMode::VisualNovel:
+          updateVisualNovel(input, sceneSystem, tileDebugText);
+          character = sceneSystem.findObject(sceneSystem.getCharacterId());
+          break;
+        case GameMode::Battle:
+          updateBattle(input, tileDebugText);
+          character = sceneSystem.findObject(sceneSystem.getCharacterId());
+          break;
+      }
       if (!character) {
         continue;
       }
-      handleGameOver(sceneSystem, playerController, *character, tileDebugText);
+      if (activeGameMode == GameMode::Platform) {
+        handleGameOver(sceneSystem, playerController, *character, tileDebugText);
+      }
 
       auto commandBuffer = beginFrame(renderBackend, debugUi, sceneSystem);
       if (!commandBuffer) {

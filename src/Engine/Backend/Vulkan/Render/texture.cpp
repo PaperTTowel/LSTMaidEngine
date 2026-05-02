@@ -1,6 +1,7 @@
 #include "texture.hpp"
 
 // std
+#include <algorithm>
 #include <stdexcept>
 
 namespace lve {
@@ -219,7 +220,7 @@ void LveTexture::createTextureSampler() {
   samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
   samplerInfo.anisotropyEnable = VK_TRUE;
-  samplerInfo.maxAnisotropy = 16.0f;
+  samplerInfo.maxAnisotropy = std::min(16.0f, mDevice.properties.limits.maxSamplerAnisotropy);
   samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
 
