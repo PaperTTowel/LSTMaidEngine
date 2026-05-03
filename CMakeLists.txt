@@ -137,3 +137,6 @@ add_custom_command(
 message(STATUS "CMake configuration finished. You can now build the project.")
 message(STATUS "IDE: Visual Studio")
 message(STATUS "Compiler: MSVC")
+
+enable_testing()
+add_subdirectory(test)
