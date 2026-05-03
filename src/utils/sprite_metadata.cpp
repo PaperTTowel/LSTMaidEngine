@@ -1,6 +1,7 @@
 #include "sprite_metadata.hpp"
 
 #include "Engine/IO/json.hpp"
+#include "Engine/runtime_paths.hpp"
 
 // std
 #include <fstream>
@@ -10,7 +11,7 @@
 namespace lve {
   namespace {
     std::string readFileToString(const std::string &path) {
-      std::ifstream file(path, std::ios::in | std::ios::binary);
+      std::ifstream file(RuntimePaths::resolveResourcePath(path), std::ios::in | std::ios::binary);
       if (!file) {
         return {};
       }

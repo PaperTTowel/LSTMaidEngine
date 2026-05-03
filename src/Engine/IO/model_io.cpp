@@ -1,5 +1,6 @@
 #include "Engine/IO/model_io.hpp"
 
+#include "Engine/runtime_paths.hpp"
 #include "utils/utils.hpp"
 
 // libs
@@ -16,10 +17,6 @@
 #include <limits>
 #include <unordered_map>
 #include <utility>
-
-#ifndef ENGINE_DIR
-#define ENGINE_DIR ""
-#endif
 
 namespace std {
   template <>
@@ -225,7 +222,7 @@ namespace lve {
     backend::ModelData &outData,
     std::string *outError,
     const backend::ModelLoadOptions &options) {
-    const std::string resolvedPath = ENGINE_DIR + path;
+    const std::string resolvedPath = RuntimePaths::resolveResourcePath(path);
 
     unsigned int postProcessFlags = aiProcess_Triangulate | aiProcess_JoinIdenticalVertices;
     if (options.generateNormals) {

@@ -1,6 +1,7 @@
 #include "Engine/IO/material_io.hpp"
 
 #include "Engine/IO/json.hpp"
+#include "Engine/runtime_paths.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -10,7 +11,7 @@ namespace lve {
 
   namespace {
     std::string readFileToString(const std::string &path) {
-      std::ifstream file(path, std::ios::in | std::ios::binary);
+      std::ifstream file(RuntimePaths::resolveResourcePath(path), std::ios::in | std::ios::binary);
       if (!file) return {};
       std::ostringstream ss;
       ss << file.rdbuf();
@@ -18,7 +19,7 @@ namespace lve {
     }
 
     bool writeStringToFile(const std::string &path, const std::string &data) {
-      std::ofstream file(path, std::ios::out | std::ios::binary | std::ios::trunc);
+      std::ofstream file(RuntimePaths::resolveResourcePath(path), std::ios::out | std::ios::binary | std::ios::trunc);
       if (!file) return false;
       file << data;
       return true;

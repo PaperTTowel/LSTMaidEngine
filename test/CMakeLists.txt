@@ -20,24 +20,28 @@ add_engine_test(SceneSerializerTests
     test_scene_serializer.cpp
     ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
     ${CMAKE_SOURCE_DIR}/src/Engine/scene.cpp
+    ${CMAKE_SOURCE_DIR}/src/Engine/runtime_paths.cpp
 )
 
 add_engine_test(MaterialIoTests
     test_material_io.cpp
     ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
     ${CMAKE_SOURCE_DIR}/src/Engine/IO/material_io.cpp
+    ${CMAKE_SOURCE_DIR}/src/Engine/runtime_paths.cpp
 )
 
 add_engine_test(SpriteMetadataTests
     test_sprite_metadata.cpp
     ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
     ${CMAKE_SOURCE_DIR}/src/utils/sprite_metadata.cpp
+    ${CMAKE_SOURCE_DIR}/src/Engine/runtime_paths.cpp
 )
 
 add_engine_test(AssetDatabaseTests
     test_asset_database.cpp
     ${CMAKE_SOURCE_DIR}/src/Engine/asset_database.cpp
     ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
+    ${CMAKE_SOURCE_DIR}/src/Engine/runtime_paths.cpp
 )
 
 add_engine_test(SceneSystemTests
@@ -46,6 +50,7 @@ add_engine_test(SceneSystemTests
     ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
     ${CMAKE_SOURCE_DIR}/src/Engine/scene.cpp
     ${CMAKE_SOURCE_DIR}/src/Engine/scene_system.cpp
+    ${CMAKE_SOURCE_DIR}/src/Engine/runtime_paths.cpp
     ${CMAKE_SOURCE_DIR}/src/utils/game_object.cpp
     ${CMAKE_SOURCE_DIR}/src/utils/sprite_animator.cpp
     ${CMAKE_SOURCE_DIR}/src/utils/sprite_metadata.cpp

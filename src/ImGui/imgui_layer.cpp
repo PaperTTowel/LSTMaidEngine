@@ -2,6 +2,7 @@
 
 #include "Engine/Backend/Vulkan/Core/vulkan_config.hpp"
 #include "Engine/Backend/Vulkan/Render/renderer.hpp"
+#include "Engine/runtime_paths.hpp"
 
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
@@ -44,8 +45,9 @@ void ImGuiLayer::init(VkRenderPass renderPass, uint32_t imageCount) {
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
   ImGui::StyleColorsDark();
+  const std::string fontPath = RuntimePaths::resolveResourcePath("Assets/font/neodgm_code.ttf");
   ImFont *koreanFont = io.Fonts->AddFontFromFileTTF(
-    "Assets/font/neodgm_code.ttf",
+    fontPath.c_str(),
     14.0f,
     nullptr,
     io.Fonts->GetGlyphRangesKorean());
@@ -177,4 +179,3 @@ void ImGuiLayer::shutdown() {
 }
 
 } // namespace lve
-

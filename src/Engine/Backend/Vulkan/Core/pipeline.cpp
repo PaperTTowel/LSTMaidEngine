@@ -1,16 +1,13 @@
 #include "pipeline.hpp"
 
 #include "Engine/Backend/Vulkan/Render/model.hpp"
+#include "Engine/runtime_paths.hpp"
 
 // std
 #include <cassert>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
-
-#ifndef ENGINE_DIR
-#define ENGINE_DIR ""
-#endif
 
 namespace lve {
 
@@ -30,7 +27,7 @@ LvePipeline::~LvePipeline() {
 }
 
 std::vector<char> LvePipeline::readFile(const std::string& filepath) {
-  std::string enginePath = ENGINE_DIR + filepath;
+  std::string enginePath = RuntimePaths::resolveResourcePath(filepath);
   std::ifstream file{enginePath, std::ios::ate | std::ios::binary};
 
   if (!file.is_open()) {
