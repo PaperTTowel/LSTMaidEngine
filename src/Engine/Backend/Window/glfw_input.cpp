@@ -1,5 +1,7 @@
 #include "Engine/Backend/Window/glfw_input.hpp"
 
+#include <GLFW/glfw3.h>
+
 namespace lve::backend {
   int GlfwInputProvider::toGlfwKey(KeyCode code) {
     switch (code) {

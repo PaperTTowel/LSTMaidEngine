@@ -39,3 +39,19 @@ add_engine_test(AssetDatabaseTests
     ${CMAKE_SOURCE_DIR}/src/Engine/asset_database.cpp
     ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
 )
+
+add_engine_test(SceneSystemTests
+    test_scene_system.cpp
+    ${CMAKE_SOURCE_DIR}/src/Engine/asset_database.cpp
+    ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
+    ${CMAKE_SOURCE_DIR}/src/Engine/scene.cpp
+    ${CMAKE_SOURCE_DIR}/src/Engine/scene_system.cpp
+    ${CMAKE_SOURCE_DIR}/src/utils/game_object.cpp
+    ${CMAKE_SOURCE_DIR}/src/utils/sprite_animator.cpp
+    ${CMAKE_SOURCE_DIR}/src/utils/sprite_metadata.cpp
+)
+
+add_engine_test(TransformTests
+    test_transform.cpp
+    ${CMAKE_SOURCE_DIR}/src/utils/game_object.cpp
+)

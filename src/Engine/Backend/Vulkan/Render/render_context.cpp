@@ -349,7 +349,7 @@ namespace lve {
     target.extent = {};
   }
 
-  void RenderContext::createOffscreenTarget(OffscreenTarget &target, VkExtent2D extent) {
+  void RenderContext::createOffscreenTarget(OffscreenTarget &target, VkExtent2D extent, const char *debugName) {
     VkImageCreateInfo colorInfo{};
     colorInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     colorInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -369,6 +369,10 @@ namespace lve {
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
       target.colorImage,
       target.colorMemory);
+    lveDevice.setObjectName(
+      reinterpret_cast<uint64_t>(target.colorImage),
+      VK_OBJECT_TYPE_IMAGE,
+      debugName);
 
     VkImageViewCreateInfo colorViewInfo{};
     colorViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -383,6 +387,10 @@ namespace lve {
     if (vkCreateImageView(lveDevice.device(), &colorViewInfo, nullptr, &target.colorView) != VK_SUCCESS) {
       throw std::runtime_error("failed to create offscreen color view");
     }
+    lveDevice.setObjectName(
+      reinterpret_cast<uint64_t>(target.colorView),
+      VK_OBJECT_TYPE_IMAGE_VIEW,
+      debugName);
 
     VkImageCreateInfo depthInfo{};
     depthInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -403,6 +411,10 @@ namespace lve {
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
       target.depthImage,
       target.depthMemory);
+    lveDevice.setObjectName(
+      reinterpret_cast<uint64_t>(target.depthImage),
+      VK_OBJECT_TYPE_IMAGE,
+      debugName);
 
     VkImageViewCreateInfo depthViewInfo{};
     depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -417,6 +429,10 @@ namespace lve {
     if (vkCreateImageView(lveDevice.device(), &depthViewInfo, nullptr, &target.depthView) != VK_SUCCESS) {
       throw std::runtime_error("failed to create offscreen depth view");
     }
+    lveDevice.setObjectName(
+      reinterpret_cast<uint64_t>(target.depthView),
+      VK_OBJECT_TYPE_IMAGE_VIEW,
+      debugName);
 
     std::array<VkImageView, 2> attachments = {target.colorView, target.depthView};
     VkFramebufferCreateInfo framebufferInfo{};
@@ -430,6 +446,10 @@ namespace lve {
     if (vkCreateFramebuffer(lveDevice.device(), &framebufferInfo, nullptr, &target.framebuffer) != VK_SUCCESS) {
       throw std::runtime_error("failed to create offscreen framebuffer");
     }
+    lveDevice.setObjectName(
+      reinterpret_cast<uint64_t>(target.framebuffer),
+      VK_OBJECT_TYPE_FRAMEBUFFER,
+      debugName);
 
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -447,6 +467,10 @@ namespace lve {
     if (vkCreateSampler(lveDevice.device(), &samplerInfo, nullptr, &target.sampler) != VK_SUCCESS) {
       throw std::runtime_error("failed to create offscreen sampler");
     }
+    lveDevice.setObjectName(
+      reinterpret_cast<uint64_t>(target.sampler),
+      VK_OBJECT_TYPE_SAMPLER,
+      debugName);
 
     target.imguiDescriptor = ImGui_ImplVulkan_AddTexture(
       target.sampler,
@@ -473,14 +497,14 @@ namespace lve {
     if (rebuildScene || destroyScene) {
       destroyOffscreenTarget(sceneViewTarget);
       if (rebuildScene) {
-        createOffscreenTarget(sceneViewTarget, {sceneWidth, sceneHeight});
+        createOffscreenTarget(sceneViewTarget, {sceneWidth, sceneHeight}, "Scene View Offscreen Target");
       }
     }
 
     if (rebuildGame || destroyGame) {
       destroyOffscreenTarget(gameViewTarget);
       if (rebuildGame) {
-        createOffscreenTarget(gameViewTarget, {gameWidth, gameHeight});
+        createOffscreenTarget(gameViewTarget, {gameWidth, gameHeight}, "Game View Offscreen Target");
       }
     }
   }

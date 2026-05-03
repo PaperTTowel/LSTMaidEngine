@@ -1,38 +1,27 @@
 #pragma once
 
 #include "Engine/Backend/runtime_backend.hpp"
-#include "Engine/game_frame_controller.hpp"
-#include "Engine/render_frame_coordinator.hpp"
-#include "Editor/editor_frame_controller.hpp"
-#include "Editor/editor_system.hpp"
 
 // std
 #include <memory>
 
 namespace lve {
-  namespace backend {
-    class EditorRenderBackend;
-  }
-
   class EngineLoop {
   public:
     static constexpr int WIDTH = 800;
     static constexpr int HEIGHT = 600;
 
-    EngineLoop();
+    explicit EngineLoop(std::unique_ptr<backend::RuntimeBackend> runtime);
     ~EngineLoop();
 
     EngineLoop(const EngineLoop &) = delete;
     EngineLoop &operator=(const EngineLoop &) = delete;
 
-    void run();
+    backend::RuntimeBackend &getRuntime() { return *runtime; }
+    const backend::RuntimeBackend &getRuntime() const { return *runtime; }
 
   private:
     std::unique_ptr<backend::RuntimeBackend> runtime;
-    std::unique_ptr<EditorSystem> editorSystem;
-    EditorFrameController editorFrameController;
-    GameFrameController gameFrameController;
-    RenderFrameCoordinator renderFrameCoordinator;
   };
 } // namespace lve
 

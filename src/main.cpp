@@ -1,4 +1,4 @@
-#include "Engine/engine_loop.hpp"
+#include "Editor/editor.hpp"
 
 // std
 #include <cstdlib>
@@ -6,7 +6,7 @@
 #include <stdexcept>
 
 int main() {
-  lve::EngineLoop app{};
+  lve::Editor app{};
 
   try {
     app.run();

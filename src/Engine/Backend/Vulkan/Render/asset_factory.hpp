@@ -12,7 +12,9 @@ namespace lve::backend {
   public:
     explicit VulkanRenderAssetFactory(LveDevice &device);
 
-    std::shared_ptr<RenderModel> loadModel(const std::string &path) override;
+    std::shared_ptr<RenderModel> loadModel(
+      const std::string &path,
+      const ModelLoadOptions &options = {}) override;
     std::shared_ptr<RenderMaterial> loadMaterial(
       const std::string &path,
       std::string *outError = nullptr,
@@ -22,7 +24,9 @@ namespace lve::backend {
       const std::string &path,
       const MaterialData &data,
       std::string *outError = nullptr) override;
-    std::shared_ptr<RenderTexture> loadTexture(const std::string &path) override;
+    std::shared_ptr<RenderTexture> loadTexture(
+      const std::string &path,
+      const TextureLoadOptions &options = {}) override;
     std::shared_ptr<RenderTexture> getDefaultTexture() override;
 
   private:

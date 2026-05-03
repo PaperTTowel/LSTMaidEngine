@@ -2,6 +2,8 @@
 
 // std
 #include <iostream>
+#include <optional>
+#include <string>
 #include <vector>
 
 // libs
@@ -15,6 +17,24 @@ namespace lve {
       return glm::length(transform.translation) < eps &&
         glm::length(transform.rotation) < eps &&
         glm::length(transform.scale - glm::vec3(1.f)) < eps;
+    }
+
+    std::optional<LveGameObject::id_t> parseObjectId(const std::string &id) {
+      constexpr const char *prefix = "obj_";
+      constexpr std::size_t prefixLength = 4;
+      if (id.size() <= prefixLength || id.compare(0, prefixLength, prefix) != 0) {
+        return std::nullopt;
+      }
+
+      LveGameObject::id_t parsed = 0;
+      for (std::size_t i = prefixLength; i < id.size(); ++i) {
+        const char ch = id[i];
+        if (ch < '0' || ch > '9') {
+          return std::nullopt;
+        }
+        parsed = parsed * 10u + static_cast<LveGameObject::id_t>(ch - '0');
+      }
+      return parsed;
     }
   } // namespace
 
@@ -121,7 +141,16 @@ namespace lve {
       return it->second;
     }
     const std::string resolvedPath = assetDatabase.resolveAssetPath(assetPath);
-    auto sharedModel = assetFactory.loadModel(resolvedPath);
+    backend::ModelLoadOptions loadOptions{};
+    if (const auto *meta = assetDatabase.getMetaForPath(assetPath)) {
+      if (meta->type == AssetType::Model) {
+        loadOptions.scale = meta->modelSettings.scale;
+        loadOptions.generateNormals = meta->modelSettings.generateNormals;
+        loadOptions.generateTangents = meta->modelSettings.generateTangents;
+        loadOptions.flipUV = meta->modelSettings.flipUV;
+      }
+    }
+    auto sharedModel = assetFactory.loadModel(resolvedPath, loadOptions);
     if (!sharedModel) {
       std::cerr << "Failed to load model " << resolvedPath << "\n";
       return {};
@@ -553,19 +582,32 @@ namespace lve {
     bool characterAssigned = false;
     std::optional<LveGameObject::id_t> activeCameraId{};
     for (const auto &e : scene.entities) {
+      const std::optional<LveGameObject::id_t> parsedId = parseObjectId(e.id);
+      const bool canRestoreId = parsedId && (!protectedId || *parsedId != *protectedId);
       if (e.type == EntityType::Light) {
-        auto &light = createPointLightObject(e.transform.position);
+        auto &light = canRestoreId
+          ? createPointLightObjectWithId(
+              *parsedId,
+              e.transform.position,
+              e.light ? e.light->intensity : 0.2f,
+              e.transform.scale.x,
+              e.light ? e.light->color : glm::vec3(1.f))
+          : createPointLightObject(e.transform.position);
         light.color = e.light ? e.light->color : glm::vec3(1.f);
         if (light.pointLight && e.light) {
           light.pointLight->lightIntensity = e.light->intensity;
         }
+        light.transform.rotation = e.transform.rotation;
+        light.transform.scale = e.transform.scale;
         light.name = !e.name.empty() ? e.name : "PointLight " + std::to_string(light.getId());
         light.transformDirty = true;
         continue;
       }
 
       if (e.type == EntityType::Camera && e.camera) {
-        auto &cameraObj = createCameraObject(e.transform.position);
+        auto &cameraObj = canRestoreId
+          ? createCameraObjectWithId(*parsedId, e.transform.position, *e.camera)
+          : createCameraObject(e.transform.position);
         cameraObj.transform.rotation = e.transform.rotation;
         cameraObj.transform.scale = e.transform.scale;
         cameraObj.name = !e.name.empty() ? e.name : "Camera " + std::to_string(cameraObj.getId());
@@ -583,7 +625,9 @@ namespace lve {
         if (spritePath.empty()) {
           spritePath = metaPath;
         }
-        auto &obj = createSpriteObject(e.transform.position, desiredState, spritePath);
+        auto &obj = canRestoreId
+          ? createSpriteObjectWithId(*parsedId, e.transform.position, desiredState, spritePath)
+          : createSpriteObject(e.transform.position, desiredState, spritePath);
         obj.transform.rotation = e.transform.rotation;
         obj.transform.scale = e.transform.scale;
         obj.name = !e.name.empty() ? e.name : "Sprite " + std::to_string(obj.getId());
@@ -605,7 +649,9 @@ namespace lve {
 
       if (e.type == EntityType::Mesh && e.mesh) {
         const std::string modelPath = resolveAssetPath(e.mesh->modelGuid, e.mesh->model);
-        auto &obj = createMeshObject(e.transform.position, modelPath);
+        auto &obj = canRestoreId
+          ? createMeshObjectWithId(*parsedId, e.transform.position, modelPath)
+          : createMeshObject(e.transform.position, modelPath);
         obj.transform.rotation = e.transform.rotation;
         obj.transform.scale = e.transform.scale;
         obj.name = !e.name.empty() ? e.name : "Mesh " + std::to_string(obj.getId());

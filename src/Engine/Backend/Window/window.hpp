@@ -1,12 +1,10 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
 #include "Engine/Backend/render_types.hpp"
 
 #include <string>
-#include <vector>
+
+struct GLFWwindow;
 
 namespace lve {
 
@@ -31,7 +29,7 @@ namespace lve {
     LveWindow(const LveWindow &) = delete;
     LveWindow &operator=(const LveWindow &) = delete;
 
-    bool shouldClose() { return glfwWindowShouldClose(window); }
+    bool shouldClose() const;
     backend::RenderExtent getExtent() const {
       return backend::RenderExtent{static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height)};
     }
@@ -41,8 +39,6 @@ namespace lve {
 
     void pollEvents();
     void waitEvents();
-    std::vector<const char *> getRequiredInstanceExtensions() const;
-    void createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
 
   private:
     static void framebufferResizeCallback(GLFWwindow *window, int width, int height);

@@ -9,6 +9,7 @@ namespace lve {
   bool loadModelDataFromFile(
     const std::string &path,
     backend::ModelData &outData,
-    std::string *outError = nullptr);
+    std::string *outError = nullptr,
+    const backend::ModelLoadOptions &options = {});
 
 } // namespace lve

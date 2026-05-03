@@ -2,6 +2,8 @@
 
 #include "Engine/Backend/Window/window.hpp"
 
+#include <vulkan/vulkan.h>
+
 // std lib headers
 #include <string>
 #include <vector>
@@ -47,6 +49,7 @@ class LveDevice {
   // Expose Vulkan handles for subsystems that need them (e.g., ImGui init)
   VkInstance getInstance() { return instance; }
   VkPhysicalDevice getPhysicalDevice() { return physicalDevice; }
+  void setObjectName(uint64_t objectHandle, VkObjectType objectType, const char *name) const;
 
   SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(physicalDevice); }
   uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);

@@ -70,7 +70,7 @@ namespace lve {
     void createOffscreenRenderPass();
     void destroyOffscreenRenderPass();
     void destroyOffscreenTarget(OffscreenTarget &target);
-    void createOffscreenTarget(OffscreenTarget &target, VkExtent2D extent);
+    void createOffscreenTarget(OffscreenTarget &target, VkExtent2D extent, const char *debugName);
     void beginOffscreenRenderPass(VkCommandBuffer commandBuffer, const OffscreenTarget &target);
     void createRenderSystems();
     void resetObjectDescriptorPools();

@@ -1,5 +1,7 @@
 #include "Engine/Backend/Window/window.hpp"
 
+#include <GLFW/glfw3.h>
+
 #include <stdexcept>
 #include <utility>
 
@@ -51,24 +53,13 @@ namespace lve {
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
   }
 
+  bool LveWindow::shouldClose() const {
+    return glfwWindowShouldClose(window);
+  }
+
   void LveWindow::pollEvents() { glfwPollEvents(); }
 
   void LveWindow::waitEvents() { glfwWaitEvents(); }
-
-  std::vector<const char *> LveWindow::getRequiredInstanceExtensions() const {
-    uint32_t glfwExtensionCount = 0;
-    const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-    if (!glfwExtensions || glfwExtensionCount == 0) {
-      return {};
-    }
-    return std::vector<const char *>(glfwExtensions, glfwExtensions + glfwExtensionCount);
-  }
-
-  void LveWindow::createWindowSurface(VkInstance instance, VkSurfaceKHR *surface) {
-    if (glfwCreateWindowSurface(instance, window, nullptr, surface) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create window surface");
-    }
-  }
 
   void LveWindow::framebufferResizeCallback(GLFWwindow *window, int width, int height) {
     auto lveWindow = reinterpret_cast<LveWindow *>(glfwGetWindowUserPointer(window));

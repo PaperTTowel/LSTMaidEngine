@@ -1,6 +1,7 @@
 #include "device.hpp"
 
 #include "Engine/Backend/Vulkan/Core/vulkan_config.hpp"
+#include "Engine/Backend/Vulkan/Core/window_surface.hpp"
 
 // std headers
 #include <cstring>
@@ -196,7 +197,26 @@ void LveDevice::createCommandPool() {
   }
 }
 
-void LveDevice::createSurface() { window.createWindowSurface(instance, &surface_); }
+void LveDevice::createSurface() { VulkanWindowSurface::create(window, instance, &surface_); }
+
+void LveDevice::setObjectName(uint64_t objectHandle, VkObjectType objectType, const char *name) const {
+  if (!name || objectHandle == 0) {
+    return;
+  }
+
+  auto func = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
+    vkGetDeviceProcAddr(device_, "vkSetDebugUtilsObjectNameEXT"));
+  if (!func) {
+    return;
+  }
+
+  VkDebugUtilsObjectNameInfoEXT nameInfo{};
+  nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+  nameInfo.objectType = objectType;
+  nameInfo.objectHandle = objectHandle;
+  nameInfo.pObjectName = name;
+  func(device_, &nameInfo);
+}
 
 bool LveDevice::isDeviceSuitable(VkPhysicalDevice device) {
   QueueFamilyIndices indices = findQueueFamilies(device);
@@ -264,7 +284,7 @@ bool LveDevice::checkValidationLayerSupport() {
 }
 
 std::vector<const char *> LveDevice::getRequiredExtensions() {
-  std::vector<const char *> extensions = window.getRequiredInstanceExtensions();
+  std::vector<const char *> extensions = VulkanWindowSurface::getRequiredInstanceExtensions();
   if (extensions.empty()) {
     throw std::runtime_error("GLFW did not return required Vulkan instance extensions");
   }

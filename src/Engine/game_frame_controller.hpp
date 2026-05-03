@@ -3,7 +3,7 @@
 #include "Engine/Backend/input.hpp"
 #include "Engine/Backend/render_types.hpp"
 #include "Engine/camera.hpp"
-#include "Editor/viewport_info.hpp"
+#include "Engine/viewport_info.hpp"
 #include "utils/keyboard_movement_controller.hpp"
 
 #include <cstdint>

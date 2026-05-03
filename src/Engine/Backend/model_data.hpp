@@ -70,4 +70,17 @@ namespace lve::backend {
     std::vector<ModelMaterialSource> materials{};
   };
 
+  struct ModelLoadOptions {
+    float scale{1.f};
+    bool generateNormals{true};
+    bool generateTangents{false};
+    bool flipUV{true};
+  };
+
+  struct TextureLoadOptions {
+    bool flipVertically{true};
+    bool sRGB{true};
+    bool generateMipmaps{false};
+  };
+
 } // namespace lve::backend

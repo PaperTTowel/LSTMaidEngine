@@ -57,7 +57,9 @@ namespace lve::backend {
   public:
     virtual ~RenderAssetFactory() = default;
 
-    virtual std::shared_ptr<RenderModel> loadModel(const std::string &path) = 0;
+    virtual std::shared_ptr<RenderModel> loadModel(
+      const std::string &path,
+      const ModelLoadOptions &options = {}) = 0;
     virtual std::shared_ptr<RenderMaterial> loadMaterial(
       const std::string &path,
       std::string *outError = nullptr,
@@ -67,7 +69,9 @@ namespace lve::backend {
       const std::string &path,
       const MaterialData &data,
       std::string *outError = nullptr) = 0;
-    virtual std::shared_ptr<RenderTexture> loadTexture(const std::string &path) = 0;
+    virtual std::shared_ptr<RenderTexture> loadTexture(
+      const std::string &path,
+      const TextureLoadOptions &options = {}) = 0;
     virtual std::shared_ptr<RenderTexture> getDefaultTexture() = 0;
   };
 

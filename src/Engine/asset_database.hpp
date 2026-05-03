@@ -16,9 +16,9 @@ namespace lve {
 
   struct ModelImportSettings {
     float scale{1.f};
-    bool generateNormals{false};
+    bool generateNormals{true};
     bool generateTangents{true};
-    bool flipUV{false};
+    bool flipUV{true};
   };
 
   struct TextureImportSettings {

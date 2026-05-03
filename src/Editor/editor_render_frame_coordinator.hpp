@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Engine/Backend/render_backend.hpp"
-#include "Engine/game_frame_controller.hpp"
 #include "Editor/editor_frame_controller.hpp"
 #include "Editor/editor_system.hpp"
+#include "Engine/Backend/render_backend.hpp"
+#include "Engine/game_frame_controller.hpp"
 
 #include <vector>
 
@@ -11,7 +11,7 @@ namespace lve {
   class LveGameObject;
   class SceneSystem;
 
-  class RenderFrameCoordinator {
+  class EditorRenderFrameCoordinator {
   public:
     backend::CommandBufferHandle beginFrame(
       backend::RenderBackend &renderBackend,

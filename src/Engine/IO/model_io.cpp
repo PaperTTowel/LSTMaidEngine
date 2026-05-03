@@ -124,7 +124,8 @@ namespace lve {
       const aiMaterial *material,
       backend::ModelData &data,
       std::unordered_map<backend::ModelVertex, uint32_t> &uniqueVertices,
-      backend::ModelSubMesh &outSubMesh) {
+      backend::ModelSubMesh &outSubMesh,
+      const backend::ModelLoadOptions &options) {
       const uint32_t indexStart = static_cast<uint32_t>(data.indices.size());
       glm::vec3 boundsMin(std::numeric_limits<float>::max());
       glm::vec3 boundsMax(std::numeric_limits<float>::lowest());
@@ -140,7 +141,7 @@ namespace lve {
 
           if (mesh->HasPositions()) {
             const aiVector3D &pos = mesh->mVertices[index];
-            vertex.position = {pos.x, pos.y, pos.z};
+            vertex.position = glm::vec3{pos.x, pos.y, pos.z} * options.scale;
             boundsMin = glm::min(boundsMin, vertex.position);
             boundsMax = glm::max(boundsMax, vertex.position);
             hasBounds = true;
@@ -222,16 +223,23 @@ namespace lve {
   bool loadModelDataFromFile(
     const std::string &path,
     backend::ModelData &outData,
-    std::string *outError) {
+    std::string *outError,
+    const backend::ModelLoadOptions &options) {
     const std::string resolvedPath = ENGINE_DIR + path;
 
+    unsigned int postProcessFlags = aiProcess_Triangulate | aiProcess_JoinIdenticalVertices;
+    if (options.generateNormals) {
+      postProcessFlags |= aiProcess_GenNormals;
+    }
+    if (options.generateTangents) {
+      postProcessFlags |= aiProcess_CalcTangentSpace;
+    }
+    if (options.flipUV) {
+      postProcessFlags |= aiProcess_FlipUVs;
+    }
+
     Assimp::Importer importer;
-    const aiScene *scene = importer.ReadFile(
-      resolvedPath,
-      aiProcess_Triangulate |
-        aiProcess_GenNormals |
-        aiProcess_JoinIdenticalVertices |
-        aiProcess_FlipUVs);
+    const aiScene *scene = importer.ReadFile(resolvedPath, postProcessFlags);
     if (!scene || !scene->mRootNode) {
       if (outError) {
         *outError = importer.GetErrorString();
@@ -266,7 +274,7 @@ namespace lve {
         material = scene->mMaterials[mesh->mMaterialIndex];
       }
       backend::ModelSubMesh subMesh{};
-      processMesh(mesh, material, outData, uniqueVertices, subMesh);
+      processMesh(mesh, material, outData, uniqueVertices, subMesh, options);
       meshIndexToSubmesh[meshIndex] = static_cast<int>(outData.subMeshes.size());
       outData.subMeshes.push_back(subMesh);
     }

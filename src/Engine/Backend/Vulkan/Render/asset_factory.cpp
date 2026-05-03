@@ -18,10 +18,12 @@ namespace lve::backend {
   VulkanRenderAssetFactory::VulkanRenderAssetFactory(LveDevice &device)
     : device{device} {}
 
-  std::shared_ptr<RenderModel> VulkanRenderAssetFactory::loadModel(const std::string &path) {
+  std::shared_ptr<RenderModel> VulkanRenderAssetFactory::loadModel(
+    const std::string &path,
+    const ModelLoadOptions &options) {
     backend::ModelData data{};
     std::string error;
-    if (!loadModelDataFromFile(path, data, &error)) {
+    if (!loadModelDataFromFile(path, data, &error, options)) {
       std::cerr << "Failed to load model " << path;
       if (!error.empty()) {
         std::cerr << ": " << error;
@@ -45,7 +47,7 @@ namespace lve::backend {
         } else {
           ImageData image{};
           std::string texError;
-          if (loadImageDataFromFile(source.path, image, &texError)) {
+          if (loadImageDataFromFile(source.path, image, &texError, false)) {
             auto uniqueTex = LveTexture::createTextureFromRgba(
               device,
               image.pixels.data(),
@@ -111,11 +113,13 @@ namespace lve::backend {
     return saveMaterialToFile(path, data, outError);
   }
 
-  std::shared_ptr<RenderTexture> VulkanRenderAssetFactory::loadTexture(const std::string &path) {
+  std::shared_ptr<RenderTexture> VulkanRenderAssetFactory::loadTexture(
+    const std::string &path,
+    const TextureLoadOptions &options) {
     try {
       ImageData image{};
       std::string error;
-      if (!loadImageDataFromFile(path, image, &error)) {
+      if (!loadImageDataFromFile(path, image, &error, options.flipVertically)) {
         std::cerr << "Failed to load texture " << path;
         if (!error.empty()) {
           std::cerr << ": " << error;

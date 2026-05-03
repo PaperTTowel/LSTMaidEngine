@@ -1,4 +1,4 @@
-#include "Engine/render_frame_coordinator.hpp"
+#include "Editor/editor_render_frame_coordinator.hpp"
 
 #include "Engine/scene_system.hpp"
 
@@ -6,7 +6,7 @@
 
 namespace lve {
 
-  backend::CommandBufferHandle RenderFrameCoordinator::beginFrame(
+  backend::CommandBufferHandle EditorRenderFrameCoordinator::beginFrame(
     backend::RenderBackend &renderBackend,
     EditorSystem &editorSystem,
     SceneSystem &sceneSystem) {
@@ -19,7 +19,7 @@ namespace lve {
     return commandBuffer;
   }
 
-  void RenderFrameCoordinator::ensureOffscreenTargets(
+  void EditorRenderFrameCoordinator::ensureOffscreenTargets(
     backend::RenderBackend &renderBackend,
     const ViewportInfo &sceneView,
     const ViewportInfo &gameView) {
@@ -30,7 +30,7 @@ namespace lve {
       gameView.visible ? gameView.height : 0);
   }
 
-  void RenderFrameCoordinator::renderFrame(
+  void EditorRenderFrameCoordinator::renderFrame(
     float frameTime,
     backend::RenderBackend &renderBackend,
     EditorSystem &editorSystem,
