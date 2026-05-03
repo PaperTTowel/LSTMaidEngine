@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Engine/Backend/runtime_backend.hpp"
+#include "Engine/game_frame_controller.hpp"
+#include "Engine/render_frame_coordinator.hpp"
+#include "Editor/editor_frame_controller.hpp"
 #include "Editor/editor_system.hpp"
 
 // std
@@ -27,11 +30,9 @@ namespace lve {
   private:
     std::unique_ptr<backend::RuntimeBackend> runtime;
     std::unique_ptr<EditorSystem> editorSystem;
-    LveGameObject::id_t viewerId{0};
-    bool useOrthoCamera{false};
-    bool wireframeEnabled{false};
-    bool normalViewEnabled{false};
-    editor::ResourceBrowserState resourceBrowserState{};
+    EditorFrameController editorFrameController;
+    GameFrameController gameFrameController;
+    RenderFrameCoordinator renderFrameCoordinator;
   };
 } // namespace lve
 

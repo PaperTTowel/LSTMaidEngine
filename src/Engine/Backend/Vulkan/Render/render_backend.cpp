@@ -86,14 +86,15 @@ namespace lve::backend {
       frameTime,
       camera,
       objects,
-      vkCommandBuffer);
+      vkCommandBuffer,
+      0);
 
     GlobalUbo ubo{};
     ubo.projection = camera.getProjection();
     ubo.view = camera.getView();
     ubo.inverseView = camera.getInverseView();
     renderContext.pointLightSystem().update(frameInfo, ubo);
-    renderContext.updateGlobalUbo(frameInfo.frameIndex, ubo);
+    renderContext.updateGlobalUbo(frameInfo.frameIndex, 0, ubo);
 
     renderContext.simpleSystem().renderGameObjects(frameInfo);
     renderContext.pointLightSystem().render(frameInfo);
@@ -115,14 +116,15 @@ namespace lve::backend {
       frameTime,
       camera,
       objects,
-      vkCommandBuffer);
+      vkCommandBuffer,
+      1);
 
     GlobalUbo ubo{};
     ubo.projection = camera.getProjection();
     ubo.view = camera.getView();
     ubo.inverseView = camera.getInverseView();
     renderContext.pointLightSystem().update(frameInfo, ubo);
-    renderContext.updateGlobalUbo(frameInfo.frameIndex, ubo);
+    renderContext.updateGlobalUbo(frameInfo.frameIndex, 1, ubo);
 
     renderContext.simpleSystem().renderGameObjects(frameInfo);
     renderContext.pointLightSystem().render(frameInfo);

@@ -26,9 +26,10 @@ namespace lve {
   }
 
   void RenderContext::createBuffersAndDescriptors() {
+    const uint32_t globalSetCount = LveSwapChain::MAX_FRAMES_IN_FLIGHT * RENDER_VIEW_COUNT;
     globalPool = LveDescriptorPool::Builder(lveDevice)
-      .setMaxSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT)
-      .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
+      .setMaxSets(globalSetCount)
+      .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, globalSetCount)
       .build();
 
     const uint32_t maxObjectSets =
@@ -41,7 +42,7 @@ namespace lve {
       .setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT)
       .build();
 
-    uboBuffers.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
+    uboBuffers.resize(globalSetCount);
     for (int i = 0; i < uboBuffers.size(); i++) {
       uboBuffers[i] = std::make_unique<LveBuffer>(
         lveDevice,
@@ -56,7 +57,7 @@ namespace lve {
       .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
       .build();
 
-    globalDescriptorSets.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
+    globalDescriptorSets.resize(globalSetCount);
     for (int i = 0; i < globalDescriptorSets.size(); i++) {
       auto bufferInfo = uboBuffers[i]->descriptorInfo();
       if (!LveDescriptorWriter(*globalSetLayout, *globalPool)
@@ -191,21 +192,24 @@ namespace lve {
     float frameTime,
     LveCamera &camera,
     std::vector<LveGameObject*> &gameObjects,
-    VkCommandBuffer commandBuffer) {
+    VkCommandBuffer commandBuffer,
+    int viewIndex) {
     int frameIndex = lveRenderer.getFrameindex();
+    const int globalIndex = frameIndex * RENDER_VIEW_COUNT + viewIndex;
     return FrameInfo{
       frameIndex,
       frameTime,
       commandBuffer,
       camera,
-      globalDescriptorSets[frameIndex],
+      globalDescriptorSets[globalIndex],
       *objectDescriptorPool,
       gameObjects};
   }
 
-  void RenderContext::updateGlobalUbo(int frameIndex, const GlobalUbo &ubo) {
-    uboBuffers[frameIndex]->writeToBuffer((void *)&ubo);
-    uboBuffers[frameIndex]->flush();
+  void RenderContext::updateGlobalUbo(int frameIndex, int viewIndex, const GlobalUbo &ubo) {
+    const int globalIndex = frameIndex * RENDER_VIEW_COUNT + viewIndex;
+    uboBuffers[globalIndex]->writeToBuffer((void *)&ubo);
+    uboBuffers[globalIndex]->flush();
   }
 
   void RenderContext::createOffscreenRenderPass() {

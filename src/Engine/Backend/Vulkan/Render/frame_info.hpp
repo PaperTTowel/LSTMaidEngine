@@ -11,6 +11,7 @@
 namespace lve{
 
     #define MAX_LIGHTS 10
+    constexpr int RENDER_VIEW_COUNT = 2;
 
     struct PointLight{
         glm::vec4 position{}; // ignore w

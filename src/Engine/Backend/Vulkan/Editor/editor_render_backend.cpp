@@ -19,6 +19,7 @@ namespace lve::backend {
     RenderPassHandle renderPass,
     std::uint32_t imageCount) {
     imgui.shutdown();
+    previewCache.clear();
     imgui.init(reinterpret_cast<VkRenderPass>(renderPass), imageCount);
   }
 
