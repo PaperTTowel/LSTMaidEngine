@@ -92,10 +92,6 @@ namespace lve {
     gameObjectManager.updateBuffer(frameIndex);
   }
 
-  void SceneSystem::resetDescriptorCaches() {
-    gameObjectManager.resetDescriptorCaches();
-  }
-
   void SceneSystem::updateAnimationFrame(
     LveGameObject &obj,
     int maxFrames,

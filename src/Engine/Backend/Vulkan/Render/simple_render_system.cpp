@@ -181,8 +181,8 @@ namespace lve {
 
       const auto &nodes = obj.model->getNodes();
       if (nodes.empty()) {
-        auto &descriptorHandle = obj.descriptorSets[frameIndex];
-        VkDescriptorSet gameObjectDescriptorSet = reinterpret_cast<VkDescriptorSet>(descriptorHandle);
+        auto &descriptorCache = frameInfo.descriptorCache.simpleObjectCacheFor(obj.getId());
+        VkDescriptorSet gameObjectDescriptorSet = descriptorCache.sets[frameIndex];
         const LveTexture *currentTexture = hasOverrideTexture
           ? overrideTexture
           : static_cast<const LveTexture*>(obj.diffuseMap.get());
@@ -203,7 +203,7 @@ namespace lve {
         bindings.metallicRoughness = metallicRoughnessTexture;
         bindings.occlusion = occlusionTexture;
         bindings.emissive = emissiveTexture;
-        auto &textureCache = obj.descriptorTextures[frameIndex];
+        auto &textureCache = descriptorCache.textures[frameIndex];
         if (gameObjectDescriptorSet == VK_NULL_HANDLE ||
             textureCache != bindings) {
           auto baseInfo = baseTexture->getImageInfo();
@@ -225,7 +225,7 @@ namespace lve {
           } else {
             writer.overwrite(gameObjectDescriptorSet);
           }
-          descriptorHandle = reinterpret_cast<backend::DescriptorSetHandle>(gameObjectDescriptorSet);
+          descriptorCache.sets[frameIndex] = gameObjectDescriptorSet;
           textureCache = bindings;
         }
 
@@ -281,9 +281,9 @@ namespace lve {
 
       const glm::mat4 objectTransform = obj.transform.mat4();
       const auto &subMeshes = obj.model->getSubMeshes();
-      if (obj.subMeshDescriptors.size() != subMeshes.size()) {
-        obj.subMeshDescriptors.assign(subMeshes.size(), {});
-      }
+      auto &subMeshDescriptorCaches = frameInfo.descriptorCache.subMeshCachesFor(
+        obj.getId(),
+        subMeshes.size());
       for (std::size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex) {
         const auto &node = nodes[nodeIndex];
         if (node.meshes.empty()) {
@@ -321,9 +321,8 @@ namespace lve {
           bindings.metallicRoughness = metallicRoughnessTexture;
           bindings.occlusion = occlusionTexture;
           bindings.emissive = emissiveTexture;
-          auto &cache = obj.subMeshDescriptors[static_cast<std::size_t>(meshIndex)];
-          auto &descriptorHandle = cache.sets[frameIndex];
-          VkDescriptorSet descriptorSet = reinterpret_cast<VkDescriptorSet>(descriptorHandle);
+          auto &cache = subMeshDescriptorCaches[static_cast<std::size_t>(meshIndex)];
+          VkDescriptorSet descriptorSet = cache.sets[frameIndex];
           auto &textureCache = cache.textures[frameIndex];
           if (descriptorSet == VK_NULL_HANDLE || textureCache != bindings) {
             auto baseInfo = baseTexture->getImageInfo();
@@ -345,7 +344,7 @@ namespace lve {
             } else {
               writer.overwrite(descriptorSet);
             }
-            descriptorHandle = reinterpret_cast<backend::DescriptorSetHandle>(descriptorSet);
+            cache.sets[frameIndex] = descriptorSet;
             textureCache = bindings;
           }
 

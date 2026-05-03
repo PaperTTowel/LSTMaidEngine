@@ -1,5 +1,6 @@
 #include "imgui_layer.hpp"
 
+#include "Engine/Backend/Vulkan/Core/vulkan_config.hpp"
 #include "Engine/Backend/Vulkan/Render/renderer.hpp"
 
 #include <imgui.h>
@@ -59,7 +60,7 @@ void ImGuiLayer::init(VkRenderPass renderPass, uint32_t imageCount) {
   ImGui_ImplGlfw_InitForVulkan(window.getGLFWwindow(), true);
 
   ImGui_ImplVulkan_InitInfo initInfo{};
-  initInfo.ApiVersion = VK_API_VERSION_1_3;
+  initInfo.ApiVersion = kVulkanApiVersion;
   initInfo.Instance = device.getInstance();
   initInfo.PhysicalDevice = device.getPhysicalDevice();
   initInfo.Device = device.device();
@@ -176,5 +177,4 @@ void ImGuiLayer::shutdown() {
 }
 
 } // namespace lve
-
 

@@ -10,6 +10,7 @@
 #include "Engine/Backend/Vulkan/Render/sprite_render_system.hpp"
 
 // std
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -72,12 +73,14 @@ namespace lve {
     void createOffscreenTarget(OffscreenTarget &target, VkExtent2D extent);
     void beginOffscreenRenderPass(VkCommandBuffer commandBuffer, const OffscreenTarget &target);
     void createRenderSystems();
+    void resetObjectDescriptorPools();
 
     LveDevice &lveDevice;
     LveRenderer &lveRenderer;
 
     std::unique_ptr<LveDescriptorPool> globalPool{};
-    std::unique_ptr<LveDescriptorPool> objectDescriptorPool{};
+    std::array<std::unique_ptr<LveDescriptorPool>, backend::kMaxFramesInFlight> objectDescriptorPools{};
+    FrameDescriptorCache descriptorCache{};
     std::vector<std::unique_ptr<LveBuffer>> uboBuffers;
     std::unique_ptr<LveDescriptorSetLayout> globalSetLayout;
     std::vector<VkDescriptorSet> globalDescriptorSets;

@@ -1,11 +1,12 @@
 #include "Engine/asset_database.hpp"
 
+#include "Engine/IO/json.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <random>
-#include <regex>
 #include <sstream>
 
 namespace lve {
@@ -69,33 +70,6 @@ namespace lve {
       return true;
     }
 
-    std::string parseString(const std::string &src, const std::string &key, const std::string &defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*\"([^\"]*)\"");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() > 1) {
-        return m[1].str();
-      }
-      return defVal;
-    }
-
-    float parseFloat(const std::string &src, const std::string &key, float defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() > 1) {
-        return std::stof(m[1].str());
-      }
-      return defVal;
-    }
-
-    bool parseBool(const std::string &src, const std::string &key, bool defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*(true|false)");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() > 1) {
-        return m[1].str() == "true";
-      }
-      return defVal;
-    }
-
     std::string generateGuid() {
       std::random_device rd;
       std::mt19937 gen(rd());
@@ -137,10 +111,14 @@ namespace lve {
 
     AssetType detectJsonType(const fs::path &path) {
       const std::string content = readFileToString(path.string());
-      if (content.find("\"entities\"") != std::string::npos) {
+      io::JsonValue root;
+      if (!io::parseJson(content, root) || !root.isObject()) {
+        return AssetType::Unknown;
+      }
+      if (root.find("entities")) {
         return AssetType::Scene;
       }
-      if (content.find("\"states\"") != std::string::npos) {
+      if (root.find("states")) {
         return AssetType::SpriteMeta;
       }
       return AssetType::Unknown;
@@ -163,9 +141,9 @@ namespace lve {
       std::ostringstream ss;
       ss << "{\n";
       ss << "  \"version\": " << meta.version << ",\n";
-      ss << "  \"guid\": \"" << meta.guid << "\",\n";
-      ss << "  \"type\": \"" << typeToString(meta.type) << "\",\n";
-      ss << "  \"source\": \"" << meta.sourcePath << "\"";
+      ss << "  \"guid\": \"" << io::escapeJsonString(meta.guid) << "\",\n";
+      ss << "  \"type\": \"" << io::escapeJsonString(typeToString(meta.type)) << "\",\n";
+      ss << "  \"source\": \"" << io::escapeJsonString(meta.sourcePath) << "\"";
       if (meta.type == AssetType::Model) {
         ss << ",\n  \"import\": {\n";
         ss << "    \"scale\": " << meta.modelSettings.scale << ",\n";
@@ -186,18 +164,29 @@ namespace lve {
     bool loadMetaFile(const std::string &metaPath, AssetMeta &outMeta) {
       const std::string content = readFileToString(metaPath);
       if (content.empty()) return false;
-      outMeta.version = static_cast<int>(parseFloat(content, "version", outMeta.version));
-      outMeta.guid = parseString(content, "guid", outMeta.guid);
-      outMeta.type = typeFromString(parseString(content, "type", typeToString(outMeta.type)));
-      outMeta.sourcePath = parseString(content, "source", outMeta.sourcePath);
+      io::JsonValue root;
+      if (!io::parseJson(content, root) || !root.isObject()) {
+        return false;
+      }
+      outMeta.version = root.find("version") ? root.find("version")->asInt(outMeta.version) : outMeta.version;
+      outMeta.guid = root.find("guid") ? root.find("guid")->asString(outMeta.guid) : outMeta.guid;
+      outMeta.type = typeFromString(root.find("type") ? root.find("type")->asString(typeToString(outMeta.type)) : typeToString(outMeta.type));
+      outMeta.sourcePath = root.find("source") ? root.find("source")->asString(outMeta.sourcePath) : outMeta.sourcePath;
+      const auto *importSettings = root.find("import");
       if (outMeta.type == AssetType::Model) {
-        outMeta.modelSettings.scale = parseFloat(content, "scale", outMeta.modelSettings.scale);
-        outMeta.modelSettings.generateNormals = parseBool(content, "generateNormals", outMeta.modelSettings.generateNormals);
-        outMeta.modelSettings.generateTangents = parseBool(content, "generateTangents", outMeta.modelSettings.generateTangents);
-        outMeta.modelSettings.flipUV = parseBool(content, "flipUV", outMeta.modelSettings.flipUV);
+        const auto *scale = importSettings ? importSettings->find("scale") : nullptr;
+        const auto *generateNormals = importSettings ? importSettings->find("generateNormals") : nullptr;
+        const auto *generateTangents = importSettings ? importSettings->find("generateTangents") : nullptr;
+        const auto *flipUV = importSettings ? importSettings->find("flipUV") : nullptr;
+        outMeta.modelSettings.scale = scale ? static_cast<float>(scale->asNumber(outMeta.modelSettings.scale)) : outMeta.modelSettings.scale;
+        outMeta.modelSettings.generateNormals = generateNormals ? generateNormals->asBool(outMeta.modelSettings.generateNormals) : outMeta.modelSettings.generateNormals;
+        outMeta.modelSettings.generateTangents = generateTangents ? generateTangents->asBool(outMeta.modelSettings.generateTangents) : outMeta.modelSettings.generateTangents;
+        outMeta.modelSettings.flipUV = flipUV ? flipUV->asBool(outMeta.modelSettings.flipUV) : outMeta.modelSettings.flipUV;
       } else if (outMeta.type == AssetType::Texture) {
-        outMeta.textureSettings.sRGB = parseBool(content, "sRGB", outMeta.textureSettings.sRGB);
-        outMeta.textureSettings.generateMipmaps = parseBool(content, "generateMipmaps", outMeta.textureSettings.generateMipmaps);
+        const auto *sRGB = importSettings ? importSettings->find("sRGB") : nullptr;
+        const auto *generateMipmaps = importSettings ? importSettings->find("generateMipmaps") : nullptr;
+        outMeta.textureSettings.sRGB = sRGB ? sRGB->asBool(outMeta.textureSettings.sRGB) : outMeta.textureSettings.sRGB;
+        outMeta.textureSettings.generateMipmaps = generateMipmaps ? generateMipmaps->asBool(outMeta.textureSettings.generateMipmaps) : outMeta.textureSettings.generateMipmaps;
       }
       return true;
     }

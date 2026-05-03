@@ -1,8 +1,9 @@
 #include "Engine/IO/material_io.hpp"
 
+#include "Engine/IO/json.hpp"
+
 #include <filesystem>
 #include <fstream>
-#include <regex>
 #include <sstream>
 
 namespace lve {
@@ -23,51 +24,42 @@ namespace lve {
       return true;
     }
 
-    std::string parseString(const std::string &src, const std::string &key, const std::string &defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*\"([^\"]*)\"");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() > 1) {
-        return m[1].str();
+    std::string readString(const io::JsonValue &src, const std::string &key, const std::string &defVal) {
+      const auto *value = src.find(key);
+      return value ? value->asString(defVal) : defVal;
+    }
+
+    float readFloat(const io::JsonValue &src, const std::string &key, float defVal) {
+      const auto *value = src.find(key);
+      return value ? static_cast<float>(value->asNumber(defVal)) : defVal;
+    }
+
+    int readInt(const io::JsonValue &src, const std::string &key, int defVal) {
+      const auto *value = src.find(key);
+      return value ? value->asInt(defVal) : defVal;
+    }
+
+    glm::vec3 readVec3(const io::JsonValue &src, const std::string &key, const glm::vec3 &defVal) {
+      const auto *value = src.find(key);
+      const auto *array = value ? value->asArray() : nullptr;
+      if (array && array->size() >= 3) {
+        return glm::vec3{
+          static_cast<float>((*array)[0].asNumber(defVal.x)),
+          static_cast<float>((*array)[1].asNumber(defVal.y)),
+          static_cast<float>((*array)[2].asNumber(defVal.z))};
       }
       return defVal;
     }
 
-    float parseFloat(const std::string &src, const std::string &key, float defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() > 1) {
-        return std::stof(m[1].str());
-      }
-      return defVal;
-    }
-
-    int parseInt(const std::string &src, const std::string &key, int defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*(-?\\d+)");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() > 1) {
-        return std::stoi(m[1].str());
-      }
-      return defVal;
-    }
-
-    glm::vec3 parseVec3(const std::string &src, const std::string &key, const glm::vec3 &defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*\\[\\s*(-?\\d+(?:\\.\\d+)?)\\s*,\\s*(-?\\d+(?:\\.\\d+)?)\\s*,\\s*(-?\\d+(?:\\.\\d+)?)\\s*\\]");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() >= 4) {
-        return glm::vec3{std::stof(m[1].str()), std::stof(m[2].str()), std::stof(m[3].str())};
-      }
-      return defVal;
-    }
-
-    glm::vec4 parseVec4(const std::string &src, const std::string &key, const glm::vec4 &defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*\\[\\s*(-?\\d+(?:\\.\\d+)?)\\s*,\\s*(-?\\d+(?:\\.\\d+)?)\\s*,\\s*(-?\\d+(?:\\.\\d+)?)\\s*,\\s*(-?\\d+(?:\\.\\d+)?)\\s*\\]");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() >= 5) {
+    glm::vec4 readVec4(const io::JsonValue &src, const std::string &key, const glm::vec4 &defVal) {
+      const auto *value = src.find(key);
+      const auto *array = value ? value->asArray() : nullptr;
+      if (array && array->size() >= 4) {
         return glm::vec4{
-          std::stof(m[1].str()),
-          std::stof(m[2].str()),
-          std::stof(m[3].str()),
-          std::stof(m[4].str())};
+          static_cast<float>((*array)[0].asNumber(defVal.x)),
+          static_cast<float>((*array)[1].asNumber(defVal.y)),
+          static_cast<float>((*array)[2].asNumber(defVal.z)),
+          static_cast<float>((*array)[3].asNumber(defVal.w))};
       }
       return defVal;
     }
@@ -82,22 +74,26 @@ namespace lve {
       return out;
     }
 
-    MaterialData parseMaterialData(const std::string &content, const MaterialData &base) {
+    MaterialData parseMaterialData(const io::JsonValue &root, const MaterialData &base) {
       MaterialData data = base;
-      data.version = parseInt(content, "version", data.version);
-      data.name = parseString(content, "name", data.name);
-      data.textures.baseColor = parseString(content, "baseColorTexture", data.textures.baseColor);
-      data.textures.normal = parseString(content, "normalTexture", data.textures.normal);
-      data.textures.metallicRoughness = parseString(content, "metallicRoughnessTexture", data.textures.metallicRoughness);
-      data.textures.occlusion = parseString(content, "occlusionTexture", data.textures.occlusion);
-      data.textures.emissive = parseString(content, "emissiveTexture", data.textures.emissive);
-      data.factors.baseColor = parseVec4(content, "baseColorFactor", data.factors.baseColor);
-      data.factors.metallic = parseFloat(content, "metallicFactor", data.factors.metallic);
-      data.factors.roughness = parseFloat(content, "roughnessFactor", data.factors.roughness);
-      data.factors.emissive = parseVec3(content, "emissiveFactor", data.factors.emissive);
-      data.factors.occlusionStrength = parseFloat(content, "occlusionStrength", data.factors.occlusionStrength);
-      data.factors.normalScale = parseFloat(content, "normalScale", data.factors.normalScale);
+      data.version = readInt(root, "version", data.version);
+      data.name = readString(root, "name", data.name);
+      data.textures.baseColor = readString(root, "baseColorTexture", data.textures.baseColor);
+      data.textures.normal = readString(root, "normalTexture", data.textures.normal);
+      data.textures.metallicRoughness = readString(root, "metallicRoughnessTexture", data.textures.metallicRoughness);
+      data.textures.occlusion = readString(root, "occlusionTexture", data.textures.occlusion);
+      data.textures.emissive = readString(root, "emissiveTexture", data.textures.emissive);
+      data.factors.baseColor = readVec4(root, "baseColorFactor", data.factors.baseColor);
+      data.factors.metallic = readFloat(root, "metallicFactor", data.factors.metallic);
+      data.factors.roughness = readFloat(root, "roughnessFactor", data.factors.roughness);
+      data.factors.emissive = readVec3(root, "emissiveFactor", data.factors.emissive);
+      data.factors.occlusionStrength = readFloat(root, "occlusionStrength", data.factors.occlusionStrength);
+      data.factors.normalScale = readFloat(root, "normalScale", data.factors.normalScale);
       return data;
+    }
+
+    std::string quoted(const std::string &value) {
+      return "\"" + io::escapeJsonString(value) + "\"";
     }
   } // namespace
 
@@ -131,12 +127,12 @@ namespace lve {
     std::ostringstream ss;
     ss << "{\n";
     ss << "  \"version\": " << data.version << ",\n";
-    ss << "  \"name\": \"" << materialName << "\",\n";
-    ss << "  \"baseColorTexture\": \"" << normalizeSlashes(data.textures.baseColor) << "\",\n";
-    ss << "  \"normalTexture\": \"" << normalizeSlashes(data.textures.normal) << "\",\n";
-    ss << "  \"metallicRoughnessTexture\": \"" << normalizeSlashes(data.textures.metallicRoughness) << "\",\n";
-    ss << "  \"occlusionTexture\": \"" << normalizeSlashes(data.textures.occlusion) << "\",\n";
-    ss << "  \"emissiveTexture\": \"" << normalizeSlashes(data.textures.emissive) << "\",\n";
+    ss << "  \"name\": " << quoted(materialName) << ",\n";
+    ss << "  \"baseColorTexture\": " << quoted(normalizeSlashes(data.textures.baseColor)) << ",\n";
+    ss << "  \"normalTexture\": " << quoted(normalizeSlashes(data.textures.normal)) << ",\n";
+    ss << "  \"metallicRoughnessTexture\": " << quoted(normalizeSlashes(data.textures.metallicRoughness)) << ",\n";
+    ss << "  \"occlusionTexture\": " << quoted(normalizeSlashes(data.textures.occlusion)) << ",\n";
+    ss << "  \"emissiveTexture\": " << quoted(normalizeSlashes(data.textures.emissive)) << ",\n";
     ss << "  \"baseColorFactor\": [" << data.factors.baseColor.r << ", " << data.factors.baseColor.g << ", "
        << data.factors.baseColor.b << ", " << data.factors.baseColor.a << "],\n";
     ss << "  \"metallicFactor\": " << data.factors.metallic << ",\n";
@@ -170,7 +166,16 @@ namespace lve {
       return false;
     }
 
-    outData = parseMaterialData(content, outData);
+    io::JsonValue root;
+    std::string parseError;
+    if (!io::parseJson(content, root, &parseError) || !root.isObject()) {
+      if (outError) {
+        *outError = parseError.empty() ? "Invalid material JSON" : parseError;
+      }
+      return false;
+    }
+
+    outData = parseMaterialData(root, outData);
     return true;
   }
 

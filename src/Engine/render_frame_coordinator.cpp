@@ -15,7 +15,6 @@ namespace lve {
       editorSystem.onRenderPassChanged(
         renderBackend.getSwapChainRenderPass(),
         static_cast<uint32_t>(renderBackend.getSwapChainImageCount()));
-      sceneSystem.resetDescriptorCaches();
     }
     return commandBuffer;
   }

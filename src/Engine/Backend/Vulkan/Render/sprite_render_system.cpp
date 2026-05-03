@@ -121,13 +121,13 @@ namespace lve {
       if (!model) continue;
 
       const int frameIndex = frameInfo.frameIndex;
-      auto &descriptorHandle = obj.descriptorSets[frameIndex];
-      VkDescriptorSet descriptorSet = reinterpret_cast<VkDescriptorSet>(descriptorHandle);
+      auto &descriptorCache = frameInfo.descriptorCache.spriteObjectCacheFor(obj.getId());
+      VkDescriptorSet descriptorSet = descriptorCache.sets[frameIndex];
       const LveTexture *currentTexture = static_cast<const LveTexture*>(obj.diffuseMap.get());
       if (!currentTexture) {
         continue;
       }
-      auto &textureCache = obj.descriptorTextures[frameIndex];
+      auto &textureCache = descriptorCache.textures[frameIndex];
       if (descriptorSet == VK_NULL_HANDLE || textureCache.baseColor != currentTexture) {
         auto bufferInfo = obj.getBufferInfo(frameIndex);
         VkDescriptorBufferInfo vkBufferInfo{};
@@ -145,7 +145,7 @@ namespace lve {
         } else {
           writer.overwrite(descriptorSet);
         }
-        descriptorHandle = reinterpret_cast<backend::DescriptorSetHandle>(descriptorSet);
+        descriptorCache.sets[frameIndex] = descriptorSet;
         textureCache.baseColor = currentTexture;
       }
 

@@ -26,17 +26,12 @@ set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(ASSIMP_NO_EXPORT ON CACHE BOOL "" FORCE)
 add_subdirectory(external/assimp)
 
-file(GLOB_RECURSE SOURCES
-    "src/*.cpp" "src/*.hpp"
-    "src/Editor/*.cpp" "src/Editor/*.hpp"
-    "src/Engine/*.cpp" "src/Engine/*.hpp"
-    "src/ImGui/*.cpp" "src/ImGui/*.hpp"
-    "src/utils/*.cpp" "src/utils/*.hpp"
+file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
 )
-list(FILTER SOURCES EXCLUDE REGEX ".*/src/Engine/Backend/[^/]+\\.(cpp|hpp)$")
-list(FILTER SOURCES EXCLUDE REGEX ".*/src/Rendering/.*\\.(cpp|hpp)$")
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} ${IMGUIZMO_SOURCES})
+add_executable(${PROJECT_NAME} ${ENGINE_SOURCES} ${IMGUI_SOURCES} ${IMGUIZMO_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     "src"

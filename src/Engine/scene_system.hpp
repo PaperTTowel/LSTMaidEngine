@@ -31,7 +31,6 @@ namespace lve {
     void collectObjects(std::vector<LveGameObject*> &out);
     void collectObjects(std::vector<const LveGameObject*> &out) const;
     void updateBuffers(int frameIndex);
-    void resetDescriptorCaches();
     void updateAnimationFrame(LveGameObject &obj, int maxFrames, float frameTime, float animationSpeed);
 
     const AssetDefaults &getAssetDefaults() const { return assetDefaults; }

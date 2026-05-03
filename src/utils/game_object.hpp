@@ -2,7 +2,6 @@
 
 #include "Engine/Backend/object_buffer.hpp"
 #include "Engine/Backend/render_assets.hpp"
-#include "Engine/Backend/render_types.hpp"
 #include "utils/sprite_metadata.hpp"
 #include "Engine/scene.hpp"
 // #include "physics/physics_engine.hpp"
@@ -14,7 +13,6 @@
 #include <string>
 #include <memory>
 #include <optional>
-#include <array>
 #include <unordered_map>
 #include <vector>
 
@@ -65,11 +63,6 @@ namespace lve {
     }
   };
 
-  struct SubMeshDescriptorCache {
-    std::array<backend::DescriptorSetHandle, backend::kMaxFramesInFlight> sets{};
-    std::array<MaterialTextureBindings, backend::kMaxFramesInFlight> textures{};
-  };
-
   class LveGameObjectManager; // forward declare game object manager class
 
   enum class ObjectState { WALKING, IDLE };
@@ -98,10 +91,7 @@ namespace lve {
 
     bool hasPhysics = false;
     bool transformDirty{true};
-    std::array<backend::DescriptorSetHandle, backend::kMaxFramesInFlight> descriptorSets{};
-    std::array<MaterialTextureBindings, backend::kMaxFramesInFlight> descriptorTextures{};
     std::vector<NodeTransformOverride> nodeOverrides{};
-    std::vector<SubMeshDescriptorCache> subMeshDescriptors{};
 
     LveGameObject(LveGameObject &&) = default;
     LveGameObject(const LveGameObject &) = delete;
@@ -175,7 +165,6 @@ namespace lve {
 
     void updateFrame(LveGameObject &character, int maxFrames, float frameTime, float animationSpeed);
     void updateBuffer(int frameIndex);
-    void resetDescriptorCaches();
 
     LveGameObject::Map gameObjects{};
     backend::ObjectBufferPoolPtr objectBuffers;

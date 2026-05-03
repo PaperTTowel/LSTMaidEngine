@@ -1,11 +1,14 @@
 #pragma once
 
+#include "Engine/Backend/render_types.hpp"
 #include "Engine/camera.hpp"
 #include "Engine/Backend/Vulkan/Core/descriptors.hpp"
 #include "utils/game_object.hpp"
 
 // lib
 #include <vulkan/vulkan.h>
+#include <array>
+#include <unordered_map>
 #include <vector>
 
 namespace lve{
@@ -27,6 +30,62 @@ namespace lve{
         int numLights;
     };
 
+    struct DescriptorSetCacheEntry {
+        std::array<VkDescriptorSet, backend::kMaxFramesInFlight> sets{};
+        std::array<MaterialTextureBindings, backend::kMaxFramesInFlight> textures{};
+
+        void clearFrame(int frameIndex) {
+            sets[frameIndex] = VK_NULL_HANDLE;
+            textures[frameIndex] = MaterialTextureBindings{};
+        }
+    };
+
+    class FrameDescriptorCache {
+    public:
+        void clear() {
+            simpleObjectCaches.clear();
+            spriteObjectCaches.clear();
+            subMeshObjectCaches.clear();
+        }
+
+        void clearFrame(int frameIndex) {
+            for (auto &kv : simpleObjectCaches) {
+                kv.second.clearFrame(frameIndex);
+            }
+            for (auto &kv : spriteObjectCaches) {
+                kv.second.clearFrame(frameIndex);
+            }
+            for (auto &kv : subMeshObjectCaches) {
+                for (auto &cache : kv.second) {
+                    cache.clearFrame(frameIndex);
+                }
+            }
+        }
+
+        DescriptorSetCacheEntry &simpleObjectCacheFor(LveGameObject::id_t objectId) {
+            return simpleObjectCaches[objectId];
+        }
+
+        DescriptorSetCacheEntry &spriteObjectCacheFor(LveGameObject::id_t objectId) {
+            return spriteObjectCaches[objectId];
+        }
+
+        std::vector<DescriptorSetCacheEntry> &subMeshCachesFor(
+            LveGameObject::id_t objectId,
+            std::size_t subMeshCount) {
+            auto &caches = subMeshObjectCaches[objectId];
+            if (caches.size() < subMeshCount) {
+                caches.resize(subMeshCount);
+            }
+            return caches;
+        }
+
+    private:
+        std::unordered_map<LveGameObject::id_t, DescriptorSetCacheEntry> simpleObjectCaches{};
+        std::unordered_map<LveGameObject::id_t, DescriptorSetCacheEntry> spriteObjectCaches{};
+        std::unordered_map<LveGameObject::id_t, std::vector<DescriptorSetCacheEntry>> subMeshObjectCaches{};
+    };
+
     struct FrameInfo{
         int frameIndex;
         float frameTime;
@@ -34,6 +93,7 @@ namespace lve{
         LveCamera &camera;
         VkDescriptorSet globalDescriptorSet;
         LveDescriptorPool &frameDescriptorPool;  // pool for cached per-object descriptors
+        FrameDescriptorCache &descriptorCache;
         std::vector<LveGameObject*> &gameObjects;
     };
 } // namespace lve

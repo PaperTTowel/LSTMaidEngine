@@ -1,8 +1,9 @@
 #include "scene.hpp"
 
+#include "Engine/IO/json.hpp"
+
 // std
 #include <fstream>
-#include <regex>
 #include <sstream>
 
 namespace lve {
@@ -81,111 +82,47 @@ namespace lve {
       ss << "[" << v.x << ", " << v.y << ", " << v.z << "]";
     }
 
-    glm::vec3 parseVec3(const std::string &src, const std::string &key, glm::vec3 defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*\\[\\s*(-?\\d+(?:\\.\\d+)?)\\s*,\\s*(-?\\d+(?:\\.\\d+)?)\\s*,\\s*(-?\\d+(?:\\.\\d+)?)\\s*\\]");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() >= 4) {
-        return glm::vec3{std::stof(m[1].str()), std::stof(m[2].str()), std::stof(m[3].str())};
+    std::string quoted(const std::string &value) {
+      return "\"" + io::escapeJsonString(value) + "\"";
+    }
+
+    glm::vec3 readVec3(const io::JsonValue &src, const std::string &key, glm::vec3 defVal) {
+      const auto *value = src.find(key);
+      const auto *array = value ? value->asArray() : nullptr;
+      if (array && array->size() >= 3) {
+        return glm::vec3{
+          static_cast<float>((*array)[0].asNumber(defVal.x)),
+          static_cast<float>((*array)[1].asNumber(defVal.y)),
+          static_cast<float>((*array)[2].asNumber(defVal.z))};
       }
       return defVal;
     }
 
-    float parseFloat(const std::string &src, const std::string &key, float defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() > 1) {
-        return std::stof(m[1].str());
-      }
-      return defVal;
+    float readFloat(const io::JsonValue &src, const std::string &key, float defVal) {
+      const auto *value = src.find(key);
+      return value ? static_cast<float>(value->asNumber(defVal)) : defVal;
     }
 
-    int parseInt(const std::string &src, const std::string &key, int defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*(-?\\d+)");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() > 1) {
-        return std::stoi(m[1].str());
-      }
-      return defVal;
+    int readInt(const io::JsonValue &src, const std::string &key, int defVal) {
+      const auto *value = src.find(key);
+      return value ? value->asInt(defVal) : defVal;
     }
 
-    bool parseBool(const std::string &src, const std::string &key, bool defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*(true|false)");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() > 1) {
-        return m[1].str() == "true";
-      }
-      return defVal;
+    bool readBool(const io::JsonValue &src, const std::string &key, bool defVal) {
+      const auto *value = src.find(key);
+      return value ? value->asBool(defVal) : defVal;
     }
 
-    std::string parseString(const std::string &src, const std::string &key, const std::string &defVal) {
-      std::regex re("\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
-      std::smatch m;
-      if (std::regex_search(src, m, re) && m.size() > 1) {
-        return m[1].str();
-      }
-      return defVal;
-    }
-
-    // Extract object blocks inside the entities array. Assumes reasonably formatted JSON.
-    std::vector<std::string> extractEntityBlocks(const std::string &content) {
-      std::vector<std::string> blocks;
-      std::size_t pos = content.find("\"entities\"");
-      if (pos == std::string::npos) return blocks;
-      pos = content.find('[', pos);
-      if (pos == std::string::npos) return blocks;
-
-      int depth = 0;
-      std::size_t startObj = std::string::npos;
-      for (std::size_t i = pos; i < content.size(); ++i) {
-        char c = content[i];
-        if (c == '{') {
-          if (depth == 0) startObj = i;
-          depth++;
-        } else if (c == '}') {
-          depth--;
-          if (depth == 0 && startObj != std::string::npos) {
-            blocks.emplace_back(content.substr(startObj, i - startObj + 1));
-            startObj = std::string::npos;
-          }
-        } else if (c == ']' && depth == 0) {
-          break;
-        }
-      }
-      return blocks;
-    }
-
-    std::vector<std::string> extractObjectArrayBlocks(const std::string &content, const std::string &key) {
-      std::vector<std::string> blocks;
-      std::size_t pos = content.find("\"" + key + "\"");
-      if (pos == std::string::npos) return blocks;
-      pos = content.find('[', pos);
-      if (pos == std::string::npos) return blocks;
-
-      int depth = 0;
-      std::size_t startObj = std::string::npos;
-      for (std::size_t i = pos; i < content.size(); ++i) {
-        char c = content[i];
-        if (c == '{') {
-          if (depth == 0) startObj = i;
-          depth++;
-        } else if (c == '}') {
-          depth--;
-          if (depth == 0 && startObj != std::string::npos) {
-            blocks.emplace_back(content.substr(startObj, i - startObj + 1));
-            startObj = std::string::npos;
-          }
-        } else if (c == ']' && depth == 0) {
-          break;
-        }
-      }
-      return blocks;
+    std::string readString(const io::JsonValue &src, const std::string &key, const std::string &defVal) {
+      const auto *value = src.find(key);
+      return value ? value->asString(defVal) : defVal;
     }
 
     void serializeEntity(std::ostringstream &ss, const SceneEntity &e, int level) {
       ss << indent(level) << "{\n";
-      ss << indent(level + 1) << "\"id\": \"" << e.id << "\",\n";
-      ss << indent(level + 1) << "\"name\": \"" << e.name << "\",\n";
-      ss << indent(level + 1) << "\"type\": \"" << toString(e.type) << "\",\n";
+      ss << indent(level + 1) << "\"id\": " << quoted(e.id) << ",\n";
+      ss << indent(level + 1) << "\"name\": " << quoted(e.name) << ",\n";
+      ss << indent(level + 1) << "\"type\": " << quoted(toString(e.type)) << ",\n";
       ss << indent(level + 1) << "\"transform\": {\n";
       ss << indent(level + 2) << "\"position\": "; writeVec3(ss, e.transform.position); ss << ",\n";
       ss << indent(level + 2) << "\"rotation\": "; writeVec3(ss, e.transform.rotation); ss << ",\n";
@@ -195,10 +132,10 @@ namespace lve {
       if (e.sprite) {
         const auto &s = *e.sprite;
         ss << ",\n" << indent(level + 1) << "\"sprite\": {\n";
-        ss << indent(level + 2) << "\"spriteMeta\": \"" << s.spriteMeta << "\",\n";
-        ss << indent(level + 2) << "\"spriteMetaGuid\": \"" << s.spriteMetaGuid << "\",\n";
-        ss << indent(level + 2) << "\"state\": \"" << s.state << "\",\n";
-        ss << indent(level + 2) << "\"billboard\": \"" << toString(s.billboard) << "\",\n";
+        ss << indent(level + 2) << "\"spriteMeta\": " << quoted(s.spriteMeta) << ",\n";
+        ss << indent(level + 2) << "\"spriteMetaGuid\": " << quoted(s.spriteMetaGuid) << ",\n";
+        ss << indent(level + 2) << "\"state\": " << quoted(s.state) << ",\n";
+        ss << indent(level + 2) << "\"billboard\": " << quoted(toString(s.billboard)) << ",\n";
         ss << indent(level + 2) << "\"layer\": " << s.layer << "\n";
         ss << indent(level + 1) << "}";
       }
@@ -206,10 +143,10 @@ namespace lve {
       if (e.mesh) {
         const auto &m = *e.mesh;
         ss << ",\n" << indent(level + 1) << "\"mesh\": {\n";
-        ss << indent(level + 2) << "\"model\": \"" << m.model << "\",\n";
-        ss << indent(level + 2) << "\"modelGuid\": \"" << m.modelGuid << "\",\n";
-        ss << indent(level + 2) << "\"material\": \"" << m.material << "\",\n";
-        ss << indent(level + 2) << "\"materialGuid\": \"" << m.materialGuid << "\"";
+        ss << indent(level + 2) << "\"model\": " << quoted(m.model) << ",\n";
+        ss << indent(level + 2) << "\"modelGuid\": " << quoted(m.modelGuid) << ",\n";
+        ss << indent(level + 2) << "\"material\": " << quoted(m.material) << ",\n";
+        ss << indent(level + 2) << "\"materialGuid\": " << quoted(m.materialGuid);
         if (!m.nodeOverrides.empty()) {
           ss << ",\n" << indent(level + 2) << "\"nodeOverrides\": [\n";
           for (std::size_t i = 0; i < m.nodeOverrides.size(); ++i) {
@@ -235,7 +172,7 @@ namespace lve {
       if (e.light) {
         const auto &l = *e.light;
         ss << ",\n" << indent(level + 1) << "\"light\": {\n";
-        ss << indent(level + 2) << "\"kind\": \"" << toString(l.kind) << "\",\n";
+        ss << indent(level + 2) << "\"kind\": " << quoted(toString(l.kind)) << ",\n";
         ss << indent(level + 2) << "\"color\": "; writeVec3(ss, l.color); ss << ",\n";
         ss << indent(level + 2) << "\"intensity\": " << l.intensity << ",\n";
         ss << indent(level + 2) << "\"range\": " << l.range << ",\n";
@@ -246,7 +183,7 @@ namespace lve {
       if (e.camera) {
         const auto &c = *e.camera;
         ss << ",\n" << indent(level + 1) << "\"camera\": {\n";
-        ss << indent(level + 2) << "\"projection\": \"" << c.projection << "\",\n";
+        ss << indent(level + 2) << "\"projection\": " << quoted(c.projection) << ",\n";
         ss << indent(level + 2) << "\"fov\": " << c.fov << ",\n";
         ss << indent(level + 2) << "\"orthoHeight\": " << c.orthoHeight << ",\n";
         ss << indent(level + 2) << "\"near\": " << c.nearPlane << ",\n";
@@ -265,10 +202,10 @@ namespace lve {
     ss << "{\n";
     ss << indent(1) << "\"version\": " << scene.version << ",\n";
     ss << indent(1) << "\"resources\": {\n";
-    ss << indent(2) << "\"basePath\": \"" << scene.resources.basePath << "\",\n";
-    ss << indent(2) << "\"sprites\": \"" << scene.resources.spritePath << "\",\n";
-    ss << indent(2) << "\"models\": \"" << scene.resources.modelPath << "\",\n";
-    ss << indent(2) << "\"materials\": \"" << scene.resources.materialPath << "\"\n";
+    ss << indent(2) << "\"basePath\": " << quoted(scene.resources.basePath) << ",\n";
+    ss << indent(2) << "\"sprites\": " << quoted(scene.resources.spritePath) << ",\n";
+    ss << indent(2) << "\"models\": " << quoted(scene.resources.modelPath) << ",\n";
+    ss << indent(2) << "\"materials\": " << quoted(scene.resources.materialPath) << "\n";
     ss << indent(1) << "},\n";
     ss << indent(1) << "\"entities\": [\n";
     for (std::size_t i = 0; i < scene.entities.size(); ++i) {
@@ -287,72 +224,92 @@ namespace lve {
     const std::string content = readFileToString(path);
     if (content.empty()) return false;
 
-    outScene.version = parseInt(content, "version", 1);
-    outScene.resources.basePath = parseString(content, "basePath", "");
-    outScene.resources.spritePath = parseString(content, "sprites", "");
-    outScene.resources.modelPath = parseString(content, "models", "");
-    outScene.resources.materialPath = parseString(content, "materials", "");
+    io::JsonValue root;
+    if (!io::parseJson(content, root) || !root.isObject()) {
+      return false;
+    }
 
-    const auto blocks = extractEntityBlocks(content);
+    outScene.version = readInt(root, "version", 1);
+    if (const auto *resources = root.find("resources")) {
+      outScene.resources.basePath = readString(*resources, "basePath", "");
+      outScene.resources.spritePath = readString(*resources, "sprites", "");
+      outScene.resources.modelPath = readString(*resources, "models", "");
+      outScene.resources.materialPath = readString(*resources, "materials", "");
+    }
+
+    const auto *entities = root.find("entities");
+    const auto *entityArray = entities ? entities->asArray() : nullptr;
     outScene.entities.clear();
-    for (const auto &block : blocks) {
-      SceneEntity e{};
-      e.id = parseString(block, "id", "");
-      e.name = parseString(block, "name", "");
-      e.type = entityTypeFromString(parseString(block, "type", "mesh"));
-      e.transform.position = parseVec3(block, "position", e.transform.position);
-      e.transform.rotation = parseVec3(block, "rotation", e.transform.rotation);
-      e.transform.scale = parseVec3(block, "scale", e.transform.scale);
+    if (!entityArray) {
+      return true;
+    }
 
-      // sprite
-      if (block.find("\"sprite\"") != std::string::npos) {
+    for (const auto &entityJson : *entityArray) {
+      if (!entityJson.isObject()) {
+        continue;
+      }
+      SceneEntity e{};
+      e.id = readString(entityJson, "id", "");
+      e.name = readString(entityJson, "name", "");
+      e.type = entityTypeFromString(readString(entityJson, "type", "mesh"));
+      if (const auto *transform = entityJson.find("transform")) {
+        e.transform.position = readVec3(*transform, "position", e.transform.position);
+        e.transform.rotation = readVec3(*transform, "rotation", e.transform.rotation);
+        e.transform.scale = readVec3(*transform, "scale", e.transform.scale);
+      }
+
+      if (const auto *sprite = entityJson.find("sprite")) {
         SpriteComponent sc{};
-        sc.spriteMeta = parseString(block, "spriteMeta", sc.spriteMeta);
-        sc.spriteMetaGuid = parseString(block, "spriteMetaGuid", sc.spriteMetaGuid);
-        sc.state = parseString(block, "state", sc.state);
-        sc.billboard = billboardFromString(parseString(block, "billboard", toString(sc.billboard)));
-        sc.layer = parseInt(block, "layer", sc.layer);
+        sc.spriteMeta = readString(*sprite, "spriteMeta", sc.spriteMeta);
+        sc.spriteMetaGuid = readString(*sprite, "spriteMetaGuid", sc.spriteMetaGuid);
+        sc.state = readString(*sprite, "state", sc.state);
+        sc.billboard = billboardFromString(readString(*sprite, "billboard", toString(sc.billboard)));
+        sc.layer = readInt(*sprite, "layer", sc.layer);
         e.sprite = sc;
       }
 
-      if (block.find("\"mesh\"") != std::string::npos) {
+      if (const auto *mesh = entityJson.find("mesh")) {
         MeshComponent mc{};
-        mc.model = parseString(block, "model", mc.model);
-        mc.modelGuid = parseString(block, "modelGuid", mc.modelGuid);
-        mc.material = parseString(block, "material", mc.material);
-        mc.materialGuid = parseString(block, "materialGuid", mc.materialGuid);
-        const auto overrideBlocks = extractObjectArrayBlocks(block, "nodeOverrides");
-        for (const auto &overrideBlock : overrideBlocks) {
-          MeshComponent::NodeOverride ov{};
-          ov.node = parseInt(overrideBlock, "node", ov.node);
-          ov.transform.position = parseVec3(overrideBlock, "position", ov.transform.position);
-          ov.transform.rotation = parseVec3(overrideBlock, "rotation", ov.transform.rotation);
-          ov.transform.scale = parseVec3(overrideBlock, "scale", ov.transform.scale);
-          if (ov.node >= 0) {
-            mc.nodeOverrides.push_back(std::move(ov));
+        mc.model = readString(*mesh, "model", mc.model);
+        mc.modelGuid = readString(*mesh, "modelGuid", mc.modelGuid);
+        mc.material = readString(*mesh, "material", mc.material);
+        mc.materialGuid = readString(*mesh, "materialGuid", mc.materialGuid);
+        const auto *nodeOverrides = mesh->find("nodeOverrides");
+        const auto *overrideArray = nodeOverrides ? nodeOverrides->asArray() : nullptr;
+        if (overrideArray) {
+          for (const auto &overrideJson : *overrideArray) {
+            if (!overrideJson.isObject()) continue;
+            MeshComponent::NodeOverride ov{};
+            ov.node = readInt(overrideJson, "node", ov.node);
+            ov.transform.position = readVec3(overrideJson, "position", ov.transform.position);
+            ov.transform.rotation = readVec3(overrideJson, "rotation", ov.transform.rotation);
+            ov.transform.scale = readVec3(overrideJson, "scale", ov.transform.scale);
+            if (ov.node >= 0) {
+              mc.nodeOverrides.push_back(std::move(ov));
+            }
           }
         }
         e.mesh = mc;
       }
 
-      if (block.find("\"light\"") != std::string::npos) {
+      if (const auto *light = entityJson.find("light")) {
         LightComponent lc{};
-        lc.kind = lightFromString(parseString(block, "kind", toString(lc.kind)));
-        lc.color = parseVec3(block, "color", lc.color);
-        lc.intensity = parseFloat(block, "intensity", lc.intensity);
-        lc.range = parseFloat(block, "range", lc.range);
-        lc.angle = parseFloat(block, "angle", lc.angle);
+        lc.kind = lightFromString(readString(*light, "kind", toString(lc.kind)));
+        lc.color = readVec3(*light, "color", lc.color);
+        lc.intensity = readFloat(*light, "intensity", lc.intensity);
+        lc.range = readFloat(*light, "range", lc.range);
+        lc.angle = readFloat(*light, "angle", lc.angle);
         e.light = lc;
       }
 
-      if (block.find("\"camera\"") != std::string::npos) {
+      if (const auto *camera = entityJson.find("camera")) {
         CameraComponent cc{};
-        cc.projection = parseString(block, "projection", cc.projection);
-        cc.fov = parseFloat(block, "fov", cc.fov);
-        cc.orthoHeight = parseFloat(block, "orthoHeight", cc.orthoHeight);
-        cc.nearPlane = parseFloat(block, "near", cc.nearPlane);
-        cc.farPlane = parseFloat(block, "far", cc.farPlane);
-        cc.active = parseBool(block, "active", cc.active);
+        cc.projection = readString(*camera, "projection", cc.projection);
+        cc.fov = readFloat(*camera, "fov", cc.fov);
+        cc.orthoHeight = readFloat(*camera, "orthoHeight", cc.orthoHeight);
+        cc.nearPlane = readFloat(*camera, "near", cc.nearPlane);
+        cc.farPlane = readFloat(*camera, "far", cc.farPlane);
+        cc.active = readBool(*camera, "active", cc.active);
         e.camera = cc;
       }
 

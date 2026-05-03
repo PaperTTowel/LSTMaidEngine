@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Engine/Backend/Vulkan/Core/device.hpp"
+#include "Engine/Backend/Vulkan/Core/vulkan_config.hpp"
 
 // vulkan headers
 #include <vulkan/vulkan.h>
@@ -14,7 +15,7 @@ namespace lve {
 
 class LveSwapChain {
  public:
-  static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+  static constexpr int MAX_FRAMES_IN_FLIGHT = kVulkanMaxFramesInFlight;
 
   LveSwapChain(LveDevice &deviceRef, VkExtent2D windowExtent);
   LveSwapChain(

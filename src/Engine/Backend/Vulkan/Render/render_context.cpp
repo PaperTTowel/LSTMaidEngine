@@ -26,21 +26,23 @@ namespace lve {
   }
 
   void RenderContext::createBuffersAndDescriptors() {
-    const uint32_t globalSetCount = LveSwapChain::MAX_FRAMES_IN_FLIGHT * RENDER_VIEW_COUNT;
+    const uint32_t globalSetCount = backend::kMaxFramesInFlight * RENDER_VIEW_COUNT;
     globalPool = LveDescriptorPool::Builder(lveDevice)
       .setMaxSets(globalSetCount)
       .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, globalSetCount)
       .build();
 
+    constexpr uint32_t kMaxDescriptorSetsPerObject = 16;
     const uint32_t maxObjectSets =
-      LveGameObjectManager::MAX_GAME_OBJECTS * LveSwapChain::MAX_FRAMES_IN_FLIGHT;
+      LveGameObjectManager::MAX_GAME_OBJECTS * kMaxDescriptorSetsPerObject;
     constexpr uint32_t kMaterialTextureCount = 5;
-    objectDescriptorPool = LveDescriptorPool::Builder(lveDevice)
-      .setMaxSets(maxObjectSets)
-      .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, maxObjectSets * kMaterialTextureCount)
-      .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, maxObjectSets)
-      .setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT)
-      .build();
+    for (auto &pool : objectDescriptorPools) {
+      pool = LveDescriptorPool::Builder(lveDevice)
+        .setMaxSets(maxObjectSets)
+        .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, maxObjectSets * kMaterialTextureCount)
+        .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, maxObjectSets)
+        .build();
+    }
 
     uboBuffers.resize(globalSetCount);
     for (int i = 0; i < uboBuffers.size(); i++) {
@@ -87,15 +89,20 @@ namespace lve {
     auto commandBuffer = lveRenderer.beginFrame();
     if (lveRenderer.wasSwapChainRecreated()) {
       vkDeviceWaitIdle(lveDevice.device());
-      if (objectDescriptorPool) {
-        objectDescriptorPool->resetPool();
-      }
+      resetObjectDescriptorPools();
+      descriptorCache.clear();
       destroyOffscreenTarget(sceneViewTarget);
       destroyOffscreenTarget(gameViewTarget);
       destroyOffscreenRenderPass();
       createOffscreenRenderPass();
       createRenderSystems();
       swapChainRecreated = true;
+    } else if (commandBuffer) {
+      const int frameIndex = lveRenderer.getFrameindex();
+      if (objectDescriptorPools[frameIndex]) {
+        objectDescriptorPools[frameIndex]->resetPool();
+      }
+      descriptorCache.clearFrame(frameIndex);
     }
     return commandBuffer;
   }
@@ -168,6 +175,14 @@ namespace lve {
     swapChainRecreated = false;
   }
 
+  void RenderContext::resetObjectDescriptorPools() {
+    for (auto &pool : objectDescriptorPools) {
+      if (pool) {
+        pool->resetPool();
+      }
+    }
+  }
+
   VkRenderPass RenderContext::getSwapChainRenderPass() const {
     return lveRenderer.getSwapChainRenderPass();
   }
@@ -202,7 +217,8 @@ namespace lve {
       commandBuffer,
       camera,
       globalDescriptorSets[globalIndex],
-      *objectDescriptorPool,
+      *objectDescriptorPools[frameIndex],
+      descriptorCache,
       gameObjects};
   }
 

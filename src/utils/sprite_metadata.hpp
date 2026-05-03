@@ -27,7 +27,6 @@ namespace lve {
     std::unordered_map<std::string, SpriteStateInfo> states;
   };
 
-  // very small JSON subset loader tailored for sprite metadata
   bool loadSpriteMetadata(const std::string &filepath, SpriteMetadata &outMetadata);
 
 } // namespace lve

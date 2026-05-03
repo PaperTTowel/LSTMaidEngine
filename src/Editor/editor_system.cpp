@@ -722,7 +722,6 @@ namespace lve {
         result.selectedObject->enableTextureType =
           result.selectedObject->model && result.selectedObject->model->hasAnyDiffuseTexture() ? 1 : 0;
         result.selectedObject->nodeOverrides.clear();
-        result.selectedObject->subMeshDescriptors.clear();
         sceneSystem.ensureNodeOverrides(*result.selectedObject);
         hierarchyState.selectedNodeIndex = -1;
         if (!result.selectedObject->materialPath.empty()) {

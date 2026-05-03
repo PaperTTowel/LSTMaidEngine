@@ -1,8 +1,9 @@
 #include "sprite_metadata.hpp"
 
+#include "Engine/IO/json.hpp"
+
 // std
 #include <fstream>
-#include <regex>
 #include <sstream>
 #include <string>
 
@@ -18,71 +19,35 @@ namespace lve {
       return ss.str();
     }
 
-    int parseInt(const std::string &src, const std::string &key, int defaultValue) {
-      std::regex re("\"" + key + "\"\\s*:\\s*(-?\\d+)");
-      std::smatch match;
-      if (std::regex_search(src, match, re) && match.size() > 1) {
-        return std::stoi(match[1].str());
-      }
-      return defaultValue;
+    int readInt(const io::JsonValue &src, const std::string &key, int defaultValue) {
+      const auto *value = src.find(key);
+      return value ? value->asInt(defaultValue) : defaultValue;
     }
 
-    float parseFloat(const std::string &src, const std::string &key, float defaultValue) {
-      std::regex re("\"" + key + "\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)");
-      std::smatch match;
-      if (std::regex_search(src, match, re) && match.size() > 1) {
-        return std::stof(match[1].str());
-      }
-      return defaultValue;
+    float readFloat(const io::JsonValue &src, const std::string &key, float defaultValue) {
+      const auto *value = src.find(key);
+      return value ? static_cast<float>(value->asNumber(defaultValue)) : defaultValue;
     }
 
-    bool parseBool(const std::string &src, const std::string &key, bool defaultValue) {
-      std::regex re("\"" + key + "\"\\s*:\\s*(true|false)");
-      std::smatch match;
-      if (std::regex_search(src, match, re) && match.size() > 1) {
-        return match[1].str() == "true";
-      }
-      return defaultValue;
+    bool readBool(const io::JsonValue &src, const std::string &key, bool defaultValue) {
+      const auto *value = src.find(key);
+      return value ? value->asBool(defaultValue) : defaultValue;
     }
 
-    std::string parseString(const std::string &src, const std::string &key, const std::string &defaultValue) {
-      std::regex re("\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
-      std::smatch match;
-      if (std::regex_search(src, match, re) && match.size() > 1) {
-        return match[1].str();
-      }
-      return defaultValue;
+    std::string readString(const io::JsonValue &src, const std::string &key, const std::string &defaultValue) {
+      const auto *value = src.find(key);
+      return value ? value->asString(defaultValue) : defaultValue;
     }
 
-    glm::vec2 parseVec2(const std::string &src, const std::string &key, glm::vec2 defaultValue) {
-      std::regex re("\"" + key + "\"\\s*:\\s*\\[\\s*(-?\\d+(?:\\.\\d+)?)\\s*,\\s*(-?\\d+(?:\\.\\d+)?)\\s*\\]");
-      std::smatch match;
-      if (std::regex_search(src, match, re) && match.size() > 2) {
-        return glm::vec2{std::stof(match[1].str()), std::stof(match[2].str())};
+    glm::vec2 readVec2(const io::JsonValue &src, const std::string &key, glm::vec2 defaultValue) {
+      const auto *value = src.find(key);
+      const auto *array = value ? value->asArray() : nullptr;
+      if (array && array->size() >= 2) {
+        return glm::vec2{
+          static_cast<float>((*array)[0].asNumber(defaultValue.x)),
+          static_cast<float>((*array)[1].asNumber(defaultValue.y))};
       }
       return defaultValue;
-    }
-
-    std::string extractStatesBlock(const std::string &content) {
-      std::size_t pos = content.find("\"states\"");
-      if (pos == std::string::npos) return {};
-
-      // find first '{' after "states"
-      pos = content.find('{', pos);
-      if (pos == std::string::npos) return {};
-
-      int depth = 0;
-      std::size_t start = pos;
-      for (std::size_t i = pos; i < content.size(); ++i) {
-        if (content[i] == '{') depth++;
-        else if (content[i] == '}') {
-          depth--;
-          if (depth == 0) {
-            return content.substr(start + 1, i - start - 1); // inner block without outer braces
-          }
-        }
-      }
-      return {};
     }
   } // namespace
   
@@ -92,37 +57,37 @@ namespace lve {
       return false;
     }
 
-    outMetadata.atlasCols = parseInt(content, "cols", outMetadata.atlasCols);
-    outMetadata.atlasRows = parseInt(content, "rows", outMetadata.atlasRows);
-    outMetadata.size = parseVec2(content, "size", outMetadata.size);
-    outMetadata.pivot = parseVec2(content, "pivot", outMetadata.pivot);
+    io::JsonValue root;
+    if (!io::parseJson(content, root) || !root.isObject()) {
+      return false;
+    }
 
-    // parse states object (simple brace matching to capture entire states block)
-    const std::string statesBody = extractStatesBlock(content);
-    if (!statesBody.empty()) {
+    outMetadata.atlasCols = readInt(root, "cols", outMetadata.atlasCols);
+    outMetadata.atlasRows = readInt(root, "rows", outMetadata.atlasRows);
+    outMetadata.size = readVec2(root, "size", outMetadata.size);
+    outMetadata.pivot = readVec2(root, "pivot", outMetadata.pivot);
 
-      std::regex stateRe("\"([^\"]+)\"\\s*:\\s*\\{([\\s\\S]*?)\\}");
-      auto it = std::sregex_iterator(statesBody.begin(), statesBody.end(), stateRe);
-      auto end = std::sregex_iterator();
-      for (; it != end; ++it) {
-        const std::smatch &m = *it;
-        if (m.size() < 3) continue;
-        const std::string stateName = m[1].str();
-        const std::string body = m[2].str();
+    const auto *states = root.find("states");
+    const auto *stateObject = states ? states->asObject() : nullptr;
+    if (stateObject) {
+      for (const auto &kv : *stateObject) {
+        const std::string &stateName = kv.first;
+        const auto &body = kv.second;
+        if (!body.isObject()) continue;
 
         SpriteStateInfo state{};
-        state.texturePath = parseString(body, "texture", "");
-        state.row = parseInt(body, "row", state.row);
-        state.frameCount = parseInt(body, "frames", state.frameCount);
-        float fps = parseFloat(body, "fps", 0.0f);
+        state.texturePath = readString(body, "texture", "");
+        state.row = readInt(body, "row", state.row);
+        state.frameCount = readInt(body, "frames", state.frameCount);
+        float fps = readFloat(body, "fps", 0.0f);
         if (fps > 0.0f) {
           state.frameDuration = 1.0f / fps;
         } else {
-          state.frameDuration = parseFloat(body, "frameDuration", state.frameDuration);
+          state.frameDuration = readFloat(body, "frameDuration", state.frameDuration);
         }
-        state.loop = parseBool(body, "loop", state.loop);
-        state.atlasCols = parseInt(body, "cols", state.atlasCols);
-        state.atlasRows = parseInt(body, "rows", state.atlasRows);
+        state.loop = readBool(body, "loop", state.loop);
+        state.atlasCols = readInt(body, "cols", state.atlasCols);
+        state.atlasRows = readInt(body, "rows", state.atlasRows);
         outMetadata.states[stateName] = state;
       }
     }

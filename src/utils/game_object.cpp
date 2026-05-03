@@ -195,18 +195,6 @@ namespace lve {
     return objectBuffers->getBufferInfo(frameIndex, gameObjectId);
   }
 
-  void LveGameObjectManager::resetDescriptorCaches() {
-    for (auto &kv : gameObjects) {
-      auto &obj = kv.second;
-      obj.descriptorSets.fill(nullptr);
-      obj.descriptorTextures.fill(MaterialTextureBindings{});
-      for (auto &cache : obj.subMeshDescriptors) {
-        cache.sets.fill(nullptr);
-        cache.textures.fill(MaterialTextureBindings{});
-      }
-    }
-  }
-
   backend::BufferInfo LveGameObject::getBufferInfo(int frameIndex) {
     return gameObjectManager.getBufferInfoForGameObject(frameIndex, id);
   }
