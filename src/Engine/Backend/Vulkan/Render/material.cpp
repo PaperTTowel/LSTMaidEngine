@@ -13,18 +13,20 @@ namespace lve {
     std::shared_ptr<LveTexture> loadTexture(
       LveDevice &device,
       const std::string &path,
-      std::string *outError) {
+      std::string *outError,
+      const backend::TextureLoadOptions &options) {
       if (path.empty()) return {};
       try {
         ImageData image{};
-        if (!loadImageDataFromFile(path, image, outError)) {
+        if (!loadImageDataFromFile(path, image, outError, options.flipVertically)) {
           return {};
         }
         auto tex = LveTexture::createTextureFromRgba(
           device,
           image.pixels.data(),
           image.width,
-          image.height);
+          image.height,
+          options);
         return std::shared_ptr<LveTexture>(std::move(tex));
       } catch (const std::exception &e) {
         if (outError) {
@@ -85,7 +87,8 @@ namespace lve {
 
     auto updateTexture = [&](const std::string &newPath,
                              const std::string &oldPath,
-                             std::shared_ptr<LveTexture> &target) {
+                             std::shared_ptr<LveTexture> &target,
+                             const backend::TextureLoadOptions &options) {
       if (newPath == oldPath) {
         return;
       }
@@ -93,7 +96,7 @@ namespace lve {
       target.reset();
       if (!newPath.empty()) {
         std::string localError;
-        target = loadTexture(device, resolveTexturePath(newPath), &localError);
+        target = loadTexture(device, resolveTexturePath(newPath), &localError, options);
         if (!target && !localError.empty()) {
           ok = false;
           if (firstError.empty()) {
@@ -106,11 +109,20 @@ namespace lve {
       }
     };
 
-    updateTexture(data.textures.baseColor, previous.textures.baseColor, baseColorTexture);
-    updateTexture(data.textures.normal, previous.textures.normal, normalTexture);
-    updateTexture(data.textures.metallicRoughness, previous.textures.metallicRoughness, metallicRoughnessTexture);
-    updateTexture(data.textures.occlusion, previous.textures.occlusion, occlusionTexture);
-    updateTexture(data.textures.emissive, previous.textures.emissive, emissiveTexture);
+    backend::TextureLoadOptions colorTextureOptions{};
+    colorTextureOptions.sRGB = true;
+    backend::TextureLoadOptions dataTextureOptions{};
+    dataTextureOptions.sRGB = false;
+
+    updateTexture(data.textures.baseColor, previous.textures.baseColor, baseColorTexture, colorTextureOptions);
+    updateTexture(data.textures.normal, previous.textures.normal, normalTexture, dataTextureOptions);
+    updateTexture(
+      data.textures.metallicRoughness,
+      previous.textures.metallicRoughness,
+      metallicRoughnessTexture,
+      dataTextureOptions);
+    updateTexture(data.textures.occlusion, previous.textures.occlusion, occlusionTexture, dataTextureOptions);
+    updateTexture(data.textures.emissive, previous.textures.emissive, emissiveTexture, colorTextureOptions);
 
     if (!firstError.empty() && outError) {
       *outError = firstError;

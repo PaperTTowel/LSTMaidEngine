@@ -1,12 +1,23 @@
 #include "texture.hpp"
 
 // std
+#include <algorithm>
+#include <cmath>
+#include <cstring>
 #include <stdexcept>
 
 namespace lve {
 LveTexture::LveTexture(LveDevice &device, const unsigned char *rgbaPixels, int width, int height)
+    : LveTexture{device, rgbaPixels, width, height, backend::TextureLoadOptions{}} {}
+
+LveTexture::LveTexture(
+    LveDevice &device,
+    const unsigned char *rgbaPixels,
+    int width,
+    int height,
+    const backend::TextureLoadOptions &options)
     : mDevice{device} {
-  createTextureImageFromPixels(rgbaPixels, width, height);
+  createTextureImageFromPixels(rgbaPixels, width, height, options);
   createTextureImageView(VK_IMAGE_VIEW_TYPE_2D);
   createTextureSampler();
   updateDescriptor();
@@ -105,8 +116,12 @@ LveTexture::~LveTexture() {
 }
 
 std::unique_ptr<LveTexture> LveTexture::createTextureFromRgba(
-    LveDevice &device, const unsigned char *rgbaPixels, int width, int height) {
-  return std::make_unique<LveTexture>(device, rgbaPixels, width, height);
+    LveDevice &device,
+    const unsigned char *rgbaPixels,
+    int width,
+    int height,
+    const backend::TextureLoadOptions &options) {
+  return std::make_unique<LveTexture>(device, rgbaPixels, width, height, options);
 }
 
 void LveTexture::updateDescriptor() {
@@ -115,13 +130,19 @@ void LveTexture::updateDescriptor() {
   mDescriptor.imageLayout = mTextureLayout;
 }
 
-void LveTexture::createTextureImageFromPixels(const unsigned char *pixels, int texWidth, int texHeight) {
+void LveTexture::createTextureImageFromPixels(
+    const unsigned char *pixels,
+    int texWidth,
+    int texHeight,
+    const backend::TextureLoadOptions &options) {
   if (!pixels || texWidth <= 0 || texHeight <= 0) {
     throw std::runtime_error("invalid texture pixel data!");
   }
 
   VkDeviceSize imageSize = static_cast<VkDeviceSize>(texWidth) * texHeight * 4;
-  mMipLevels = 1;
+  mMipLevels = options.generateMipmaps
+    ? static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1
+    : 1;
 
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
@@ -138,7 +159,7 @@ void LveTexture::createTextureImageFromPixels(const unsigned char *pixels, int t
   memcpy(data, pixels, static_cast<size_t>(imageSize));
   vkUnmapMemory(mDevice.device(), stagingBufferMemory);
 
-  mFormat = VK_FORMAT_R8G8B8A8_SRGB;
+  mFormat = options.sRGB ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
   mExtent = {static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1};
 
   VkImageCreateInfo imageInfo{};
@@ -162,7 +183,7 @@ void LveTexture::createTextureImageFromPixels(const unsigned char *pixels, int t
       mTextureImageMemory);
   mDevice.transitionImageLayout(
       mTextureImage,
-      VK_FORMAT_R8G8B8A8_SRGB,
+      mFormat,
       VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
       mMipLevels,
@@ -174,17 +195,17 @@ void LveTexture::createTextureImageFromPixels(const unsigned char *pixels, int t
       static_cast<uint32_t>(texHeight),
       mLayerCount);
 
-  // comment this out if using mips
-  mDevice.transitionImageLayout(
-      mTextureImage,
-      VK_FORMAT_R8G8B8A8_SRGB,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      mMipLevels,
-      mLayerCount);
-
-  // If we generate mip maps then the final image will alerady be READ_ONLY_OPTIMAL
-  // mDevice.generateMipmaps(mTextureImage, mFormat, texWidth, texHeight, mMipLevels);
+  if (options.generateMipmaps) {
+    generateMipmaps(texWidth, texHeight);
+  } else {
+    mDevice.transitionImageLayout(
+        mTextureImage,
+        mFormat,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        mMipLevels,
+        mLayerCount);
+  }
   mTextureLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
   vkDestroyBuffer(mDevice.device(), stagingBuffer, nullptr);
@@ -196,7 +217,7 @@ void LveTexture::createTextureImageView(VkImageViewType viewType) {
   viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
   viewInfo.image = mTextureImage;
   viewInfo.viewType = viewType;
-  viewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+  viewInfo.format = mFormat;
   viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   viewInfo.subresourceRange.baseMipLevel = 0;
   viewInfo.subresourceRange.levelCount = mMipLevels;
@@ -235,6 +256,113 @@ void LveTexture::createTextureSampler() {
   if (vkCreateSampler(mDevice.device(), &samplerInfo, nullptr, &mTextureSampler) != VK_SUCCESS) {
     throw std::runtime_error("failed to create texture sampler!");
   }
+}
+
+void LveTexture::generateMipmaps(int32_t texWidth, int32_t texHeight) {
+  VkFormatProperties formatProperties{};
+  vkGetPhysicalDeviceFormatProperties(mDevice.getPhysicalDevice(), mFormat, &formatProperties);
+  if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+    throw std::runtime_error("texture image format does not support linear blitting!");
+  }
+
+  VkCommandBuffer commandBuffer = mDevice.beginSingleTimeCommands();
+
+  VkImageMemoryBarrier barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.image = mTextureImage;
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  barrier.subresourceRange.baseArrayLayer = 0;
+  barrier.subresourceRange.layerCount = mLayerCount;
+  barrier.subresourceRange.levelCount = 1;
+
+  int32_t mipWidth = texWidth;
+  int32_t mipHeight = texHeight;
+
+  for (uint32_t i = 1; i < mMipLevels; ++i) {
+    barrier.subresourceRange.baseMipLevel = i - 1;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0,
+        0,
+        nullptr,
+        0,
+        nullptr,
+        1,
+        &barrier);
+
+    VkImageBlit blit{};
+    blit.srcOffsets[0] = {0, 0, 0};
+    blit.srcOffsets[1] = {mipWidth, mipHeight, 1};
+    blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.srcSubresource.mipLevel = i - 1;
+    blit.srcSubresource.baseArrayLayer = 0;
+    blit.srcSubresource.layerCount = mLayerCount;
+    blit.dstOffsets[0] = {0, 0, 0};
+    blit.dstOffsets[1] = {mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
+    blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.dstSubresource.mipLevel = i;
+    blit.dstSubresource.baseArrayLayer = 0;
+    blit.dstSubresource.layerCount = mLayerCount;
+
+    vkCmdBlitImage(
+        commandBuffer,
+        mTextureImage,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        mTextureImage,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1,
+        &blit,
+        VK_FILTER_LINEAR);
+
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        0,
+        0,
+        nullptr,
+        0,
+        nullptr,
+        1,
+        &barrier);
+
+    if (mipWidth > 1) mipWidth /= 2;
+    if (mipHeight > 1) mipHeight /= 2;
+  }
+
+  barrier.subresourceRange.baseMipLevel = mMipLevels - 1;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+  vkCmdPipelineBarrier(
+      commandBuffer,
+      VK_PIPELINE_STAGE_TRANSFER_BIT,
+      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+      0,
+      0,
+      nullptr,
+      0,
+      nullptr,
+      1,
+      &barrier);
+
+  mDevice.endSingleTimeCommands(commandBuffer);
 }
 
 void LveTexture::transitionLayout(

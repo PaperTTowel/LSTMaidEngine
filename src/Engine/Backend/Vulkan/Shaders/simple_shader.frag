@@ -4,6 +4,7 @@ layout (location = 0) in vec3 fragColor;
 layout (location = 1) in vec3 fragPosWorld;
 layout (location = 2) in vec3 fragNormalWorld;
 layout (location = 3) in vec2 fragUv;
+layout (location = 4) in vec4 fragTangentWorld;
 
 layout (location = 0) out vec4 outColor;
 
@@ -49,6 +50,13 @@ mat3 cotangentFrame(vec3 normal, vec3 position, vec2 uv) {
   return mat3(tangent * invMax, bitangent * invMax, normal);
 }
 
+mat3 importedTangentFrame(vec3 normal, vec4 tangentAndSign) {
+  vec3 tangent = tangentAndSign.xyz;
+  tangent = normalize(tangent - normal * dot(normal, tangent));
+  vec3 bitangent = cross(normal, tangent) * tangentAndSign.w;
+  return mat3(tangent, bitangent, normal);
+}
+
 void main() {
   vec3 ambientLight = ubo.ambientLightColor.xyz * ubo.ambientLightColor.w;
   vec3 diffuseLight = vec3(0.0);
@@ -78,7 +86,10 @@ void main() {
   if (hasNormal) {
     vec3 tangentNormal = texture(normalMap, animatedUv).xyz * 2.0 - 1.0;
     tangentNormal.xy *= push.misc.z;
-    mat3 tbn = cotangentFrame(surfaceNormal, fragPosWorld, animatedUv);
+    bool hasImportedTangent = dot(fragTangentWorld.xyz, fragTangentWorld.xyz) > 0.000001;
+    mat3 tbn = hasImportedTangent
+      ? importedTangentFrame(surfaceNormal, fragTangentWorld)
+      : cotangentFrame(surfaceNormal, fragPosWorld, animatedUv);
     surfaceNormal = normalize(tbn * tangentNormal);
   }
 

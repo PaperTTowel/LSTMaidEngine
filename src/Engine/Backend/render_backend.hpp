@@ -34,6 +34,7 @@ namespace lve::backend {
     virtual DescriptorSetHandle getGameViewDescriptor() const = 0;
     virtual float getAspectRatio() const = 0;
     virtual int getFrameIndex() const = 0;
+    virtual RenderDebugStats getDebugStats() const = 0;
 
     virtual void setWireframe(bool enabled) = 0;
     virtual void setNormalView(bool enabled) = 0;

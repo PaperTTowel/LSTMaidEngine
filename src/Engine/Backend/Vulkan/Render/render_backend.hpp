@@ -28,6 +28,7 @@ namespace lve::backend {
     DescriptorSetHandle getGameViewDescriptor() const override;
     float getAspectRatio() const override;
     int getFrameIndex() const override;
+    RenderDebugStats getDebugStats() const override;
 
     void setWireframe(bool enabled) override;
     void setNormalView(bool enabled) override;

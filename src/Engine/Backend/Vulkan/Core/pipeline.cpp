@@ -5,11 +5,17 @@
 
 // std
 #include <cassert>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
 
 namespace lve {
+namespace {
+std::string shaderStem(const std::string &path) {
+  return std::filesystem::path(path).filename().string();
+}
+} // namespace
 
 LvePipeline::LvePipeline(
     LveDevice& device,
@@ -60,6 +66,16 @@ void LvePipeline::createGraphicsPipeline(
 
   createShaderModule(vertCode, &vertShaderModule);
   createShaderModule(fragCode, &fragShaderModule);
+  const std::string vertModuleName = "Shader Module: " + shaderStem(vertFilepath);
+  const std::string fragModuleName = "Shader Module: " + shaderStem(fragFilepath);
+  lveDevice.setObjectName(
+      reinterpret_cast<uint64_t>(vertShaderModule),
+      VK_OBJECT_TYPE_SHADER_MODULE,
+      vertModuleName.c_str());
+  lveDevice.setObjectName(
+      reinterpret_cast<uint64_t>(fragShaderModule),
+      VK_OBJECT_TYPE_SHADER_MODULE,
+      fragModuleName.c_str());
 
   VkPipelineShaderStageCreateInfo shaderStages[2];
   shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -116,6 +132,13 @@ void LvePipeline::createGraphicsPipeline(
           &graphicsPipeline) != VK_SUCCESS) {
     throw std::runtime_error("failed to create graphics pipeline");
   }
+
+  const std::string pipelineName =
+      "Pipeline: " + shaderStem(vertFilepath) + " + " + shaderStem(fragFilepath);
+  lveDevice.setObjectName(
+      reinterpret_cast<uint64_t>(graphicsPipeline),
+      VK_OBJECT_TYPE_PIPELINE,
+      pipelineName.c_str());
 }
 
 void LvePipeline::createShaderModule(const std::vector<char>& code, VkShaderModule* shaderModule) {

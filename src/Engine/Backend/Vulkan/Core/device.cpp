@@ -1,6 +1,7 @@
 #include "device.hpp"
 
 #include "Engine/Backend/Vulkan/Core/vulkan_config.hpp"
+#include "Engine/Backend/Vulkan/Core/vulkan_debug.hpp"
 #include "Engine/Backend/Vulkan/Core/window_surface.hpp"
 
 // std headers
@@ -10,44 +11,6 @@
 #include <unordered_set>
 
 namespace lve {
-
-// local callback functions
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-    void *pUserData) {
-  std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-
-  return VK_FALSE;
-}
-
-VkResult CreateDebugUtilsMessengerEXT(
-    VkInstance instance,
-    const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-    const VkAllocationCallbacks *pAllocator,
-    VkDebugUtilsMessengerEXT *pDebugMessenger) {
-  auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-      instance,
-      "vkCreateDebugUtilsMessengerEXT");
-  if (func != nullptr) {
-    return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-  } else {
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
-  }
-}
-
-void DestroyDebugUtilsMessengerEXT(
-    VkInstance instance,
-    VkDebugUtilsMessengerEXT debugMessenger,
-    const VkAllocationCallbacks *pAllocator) {
-  auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-      instance,
-      "vkDestroyDebugUtilsMessengerEXT");
-  if (func != nullptr) {
-    func(instance, debugMessenger, pAllocator);
-  }
-}
 
 // class member functions
 LveDevice::LveDevice(LveWindow &window) : window{window} {
@@ -64,7 +27,7 @@ LveDevice::~LveDevice() {
   vkDestroyDevice(device_, nullptr);
 
   if (enableValidationLayers) {
-    DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+    vulkan_debug::destroyDebugUtilsMessenger(instance, debugMessenger, nullptr);
   }
 
   vkDestroySurfaceKHR(instance, surface_, nullptr);
@@ -97,7 +60,7 @@ void LveDevice::createInstance() {
     createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
     createInfo.ppEnabledLayerNames = validationLayers.data();
 
-    populateDebugMessengerCreateInfo(debugCreateInfo);
+    vulkan_debug::populateMessengerCreateInfo(debugCreateInfo);
     createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT *)&debugCreateInfo;
   } else {
     createInfo.enabledLayerCount = 0;
@@ -181,6 +144,14 @@ void LveDevice::createLogicalDevice() {
 
   vkGetDeviceQueue(device_, indices.graphicsFamily, 0, &graphicsQueue_);
   vkGetDeviceQueue(device_, indices.presentFamily, 0, &presentQueue_);
+  setObjectName(
+      reinterpret_cast<uint64_t>(graphicsQueue_),
+      VK_OBJECT_TYPE_QUEUE,
+      "Graphics Queue");
+  setObjectName(
+      reinterpret_cast<uint64_t>(presentQueue_),
+      VK_OBJECT_TYPE_QUEUE,
+      "Present Queue");
 }
 
 void LveDevice::createCommandPool() {
@@ -195,27 +166,40 @@ void LveDevice::createCommandPool() {
   if (vkCreateCommandPool(device_, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
     throw std::runtime_error("failed to create command pool!");
   }
+  setObjectName(
+      reinterpret_cast<uint64_t>(commandPool),
+      VK_OBJECT_TYPE_COMMAND_POOL,
+      "Graphics Command Pool");
 }
 
 void LveDevice::createSurface() { VulkanWindowSurface::create(window, instance, &surface_); }
 
 void LveDevice::setObjectName(uint64_t objectHandle, VkObjectType objectType, const char *name) const {
-  if (!name || objectHandle == 0) {
-    return;
-  }
+  vulkan_debug::setObjectName(device_, objectHandle, objectType, name);
+}
 
-  auto func = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
-    vkGetDeviceProcAddr(device_, "vkSetDebugUtilsObjectNameEXT"));
-  if (!func) {
-    return;
-  }
+void LveDevice::beginDebugLabel(
+    VkCommandBuffer commandBuffer,
+    const char *name,
+    float r,
+    float g,
+    float b,
+    float a) const {
+  vulkan_debug::beginLabel(device_, commandBuffer, name, r, g, b, a);
+}
 
-  VkDebugUtilsObjectNameInfoEXT nameInfo{};
-  nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-  nameInfo.objectType = objectType;
-  nameInfo.objectHandle = objectHandle;
-  nameInfo.pObjectName = name;
-  func(device_, &nameInfo);
+void LveDevice::endDebugLabel(VkCommandBuffer commandBuffer) const {
+  vulkan_debug::endLabel(device_, commandBuffer);
+}
+
+void LveDevice::insertDebugLabel(
+    VkCommandBuffer commandBuffer,
+    const char *name,
+    float r,
+    float g,
+    float b,
+    float a) const {
+  vulkan_debug::insertLabel(device_, commandBuffer, name, r, g, b, a);
 }
 
 bool LveDevice::isDeviceSuitable(VkPhysicalDevice device) {
@@ -236,24 +220,11 @@ bool LveDevice::isDeviceSuitable(VkPhysicalDevice device) {
          supportedFeatures.samplerAnisotropy && supportedFeatures.fillModeNonSolid;
 }
 
-void LveDevice::populateDebugMessengerCreateInfo(
-    VkDebugUtilsMessengerCreateInfoEXT &createInfo) {
-  createInfo = {};
-  createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-  createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                               VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-  createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                           VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                           VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-  createInfo.pfnUserCallback = debugCallback;
-  createInfo.pUserData = nullptr;  // Optional
-}
-
 void LveDevice::setupDebugMessenger() {
   if (!enableValidationLayers) return;
   VkDebugUtilsMessengerCreateInfoEXT createInfo;
-  populateDebugMessengerCreateInfo(createInfo);
-  if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
+  vulkan_debug::populateMessengerCreateInfo(createInfo);
+  if (vulkan_debug::createDebugUtilsMessenger(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
     throw std::runtime_error("failed to set up debug messenger!");
   }
 }

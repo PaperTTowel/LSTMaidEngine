@@ -25,15 +25,22 @@ namespace lve {
     }
   } // namespace
 
-  SpriteAnimator::SpriteAnimator(backend::RenderAssetFactory &assets, SpriteMetadata meta)
-    : assets{assets}, metadata{std::move(meta)} {}
+  SpriteAnimator::SpriteAnimator(
+    backend::RenderAssetFactory &assets,
+    SpriteMetadata meta,
+    TextureOptionsResolver textureOptionsResolver)
+    : assets{assets},
+      metadata{std::move(meta)},
+      textureOptionsResolver{std::move(textureOptionsResolver)} {}
 
   std::shared_ptr<backend::RenderTexture> SpriteAnimator::loadTextureCached(const std::string &path) {
     auto it = textureCache.find(path);
     if (it != textureCache.end()) {
       return it->second;
     }
-    auto sharedTex = assets.loadTexture(path);
+    const backend::TextureLoadOptions options =
+      textureOptionsResolver ? textureOptionsResolver(path) : backend::TextureLoadOptions{};
+    auto sharedTex = assets.loadTexture(path, options);
     if (!sharedTex) {
       return nullptr;
     }

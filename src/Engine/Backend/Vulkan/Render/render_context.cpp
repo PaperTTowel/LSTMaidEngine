@@ -22,6 +22,7 @@ namespace lve {
     vkDeviceWaitIdle(lveDevice.device());
     destroyOffscreenTarget(sceneViewTarget);
     destroyOffscreenTarget(gameViewTarget);
+    destroyRetiredOffscreenTargets();
     destroyOffscreenRenderPass();
   }
 
@@ -91,6 +92,7 @@ namespace lve {
       vkDeviceWaitIdle(lveDevice.device());
       resetObjectDescriptorPools();
       descriptorCache.clear();
+      destroyRetiredOffscreenTargets();
       destroyOffscreenTarget(sceneViewTarget);
       destroyOffscreenTarget(gameViewTarget);
       destroyOffscreenRenderPass();
@@ -109,14 +111,17 @@ namespace lve {
 
   void RenderContext::endFrame() {
     lveRenderer.endFrame();
+    collectRetiredOffscreenTargets();
   }
 
   void RenderContext::beginSwapChainRenderPass(VkCommandBuffer commandBuffer) {
+    lveDevice.beginDebugLabel(commandBuffer, "Swapchain Render Pass", 0.25f, 0.35f, 0.95f);
     lveRenderer.beginSwapChainRenderPass(commandBuffer);
   }
 
   void RenderContext::endSwapChainRenderPass(VkCommandBuffer commandBuffer) {
     lveRenderer.endSwapChainRenderPass(commandBuffer);
+    lveDevice.endDebugLabel(commandBuffer);
   }
 
   void RenderContext::beginOffscreenRenderPass(VkCommandBuffer commandBuffer, const OffscreenTarget &target) {
@@ -149,22 +154,26 @@ namespace lve {
 
   bool RenderContext::beginSceneViewRenderPass(VkCommandBuffer commandBuffer) {
     if (sceneViewTarget.framebuffer == VK_NULL_HANDLE) return false;
+    lveDevice.beginDebugLabel(commandBuffer, "Scene View Render Pass", 0.15f, 0.65f, 0.95f);
     beginOffscreenRenderPass(commandBuffer, sceneViewTarget);
     return true;
   }
 
   void RenderContext::endSceneViewRenderPass(VkCommandBuffer commandBuffer) {
     vkCmdEndRenderPass(commandBuffer);
+    lveDevice.endDebugLabel(commandBuffer);
   }
 
   bool RenderContext::beginGameViewRenderPass(VkCommandBuffer commandBuffer) {
     if (gameViewTarget.framebuffer == VK_NULL_HANDLE) return false;
+    lveDevice.beginDebugLabel(commandBuffer, "Game View Render Pass", 0.25f, 0.8f, 0.35f);
     beginOffscreenRenderPass(commandBuffer, gameViewTarget);
     return true;
   }
 
   void RenderContext::endGameViewRenderPass(VkCommandBuffer commandBuffer) {
     vkCmdEndRenderPass(commandBuffer);
+    lveDevice.endDebugLabel(commandBuffer);
   }
 
   bool RenderContext::wasSwapChainRecreated() const {
@@ -201,6 +210,25 @@ namespace lve {
 
   VkExtent2D RenderContext::getGameViewExtent() const {
     return gameViewTarget.extent;
+  }
+
+  backend::RenderDebugStats RenderContext::getDebugStats() const {
+    backend::RenderDebugStats stats{};
+    stats.frameIndex = lveRenderer.getFrameindex();
+    stats.swapChainImageCount = lveRenderer.getSwapChainImageCount();
+    stats.sceneViewExtent = {sceneViewTarget.extent.width, sceneViewTarget.extent.height};
+    stats.gameViewExtent = {gameViewTarget.extent.width, gameViewTarget.extent.height};
+    stats.retiredOffscreenTargets = retiredOffscreenTargets.size();
+    stats.simpleDescriptorCaches = descriptorCache.simpleObjectCacheCount();
+    stats.spriteDescriptorCaches = descriptorCache.spriteObjectCacheCount();
+    stats.subMeshDescriptorObjects = descriptorCache.subMeshObjectCacheCount();
+    stats.subMeshDescriptorCaches = descriptorCache.subMeshCacheCount();
+    stats.swapChainRecreated = swapChainRecreated;
+    if (simpleRenderSystem) {
+      stats.wireframeEnabled = simpleRenderSystem->isWireframeEnabled();
+      stats.normalViewEnabled = simpleRenderSystem->isNormalView();
+    }
+    return stats;
   }
 
   FrameInfo RenderContext::makeFrameInfo(
@@ -349,6 +377,43 @@ namespace lve {
     target.extent = {};
   }
 
+  void RenderContext::retireOffscreenTarget(OffscreenTarget &target) {
+    const bool hasResources =
+      target.imguiDescriptor != VK_NULL_HANDLE ||
+      target.sampler != VK_NULL_HANDLE ||
+      target.framebuffer != VK_NULL_HANDLE ||
+      target.colorView != VK_NULL_HANDLE ||
+      target.colorImage != VK_NULL_HANDLE ||
+      target.depthView != VK_NULL_HANDLE ||
+      target.depthImage != VK_NULL_HANDLE;
+    if (!hasResources) {
+      target.extent = {};
+      return;
+    }
+
+    retiredOffscreenTargets.push_back(RetiredOffscreenTarget{target, 2});
+    target = OffscreenTarget{};
+  }
+
+  void RenderContext::destroyRetiredOffscreenTargets() {
+    for (auto &retired : retiredOffscreenTargets) {
+      destroyOffscreenTarget(retired.target);
+    }
+    retiredOffscreenTargets.clear();
+  }
+
+  void RenderContext::collectRetiredOffscreenTargets() {
+    for (auto it = retiredOffscreenTargets.begin(); it != retiredOffscreenTargets.end();) {
+      it->framesRemaining--;
+      if (it->framesRemaining <= 0) {
+        destroyOffscreenTarget(it->target);
+        it = retiredOffscreenTargets.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+
   void RenderContext::createOffscreenTarget(OffscreenTarget &target, VkExtent2D extent, const char *debugName) {
     VkImageCreateInfo colorInfo{};
     colorInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -495,14 +560,14 @@ namespace lve {
     }
 
     if (rebuildScene || destroyScene) {
-      destroyOffscreenTarget(sceneViewTarget);
+      retireOffscreenTarget(sceneViewTarget);
       if (rebuildScene) {
         createOffscreenTarget(sceneViewTarget, {sceneWidth, sceneHeight}, "Scene View Offscreen Target");
       }
     }
 
     if (rebuildGame || destroyGame) {
-      destroyOffscreenTarget(gameViewTarget);
+      retireOffscreenTarget(gameViewTarget);
       if (rebuildGame) {
         createOffscreenTarget(gameViewTarget, {gameWidth, gameHeight}, "Game View Offscreen Target");
       }

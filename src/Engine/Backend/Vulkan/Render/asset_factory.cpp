@@ -35,6 +35,8 @@ namespace lve::backend {
     std::unordered_map<std::string, std::shared_ptr<LveTexture>> fileCache;
     std::vector<std::shared_ptr<LveTexture>> materialTextures;
     materialTextures.resize(data.materials.size());
+    TextureLoadOptions modelTextureOptions{};
+    modelTextureOptions.flipVertically = false;
 
     for (std::size_t i = 0; i < data.materials.size(); ++i) {
       const auto &source = data.materials[i].diffuse;
@@ -52,7 +54,8 @@ namespace lve::backend {
               device,
               image.pixels.data(),
               image.width,
-              image.height);
+              image.height,
+              modelTextureOptions);
             texture = std::shared_ptr<LveTexture>(std::move(uniqueTex));
             fileCache[source.path] = texture;
           } else {
@@ -73,7 +76,8 @@ namespace lve::backend {
             device,
             image.pixels.data(),
             image.width,
-            image.height);
+            image.height,
+            modelTextureOptions);
           texture = std::shared_ptr<LveTexture>(std::move(uniqueTex));
         } else {
           std::cerr << "Failed to decode embedded model texture";
@@ -131,7 +135,8 @@ namespace lve::backend {
         device,
         image.pixels.data(),
         image.width,
-        image.height);
+        image.height,
+        options);
       return std::shared_ptr<LveTexture>(std::move(uniqueTexture));
     } catch (const std::exception &e) {
       std::cerr << "Failed to load texture " << path << ": " << e.what() << "\n";

@@ -17,7 +17,6 @@ namespace lve::backend {
           device,
           LveGameObjectManager::MAX_GAME_OBJECTS,
           sizeof(GameObjectBufferData))}
-    , renderBackendImpl{windowImpl, device}
-    , editorBackendImpl{windowImpl, device} {}
+    , renderBackendImpl{windowImpl, device} {}
 
 } // namespace lve::backend

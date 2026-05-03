@@ -101,6 +101,7 @@ namespace lve {
   }
 
   void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo) {
+    lveDevice.beginDebugLabel(frameInfo.commandBuffer, "Simple Render System", 0.95f, 0.55f, 0.15f);
     LvePipeline* activePipeline =
       (wireframeEnabled && wireframePipeline) ? wireframePipeline.get() : fillPipeline.get();
     activePipeline->bind(frameInfo.commandBuffer);
@@ -385,6 +386,7 @@ namespace lve {
         }
       }
     }
+    lveDevice.endDebugLabel(frameInfo.commandBuffer);
   }
 } // namespace lve
 

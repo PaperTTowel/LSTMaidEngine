@@ -80,6 +80,18 @@ namespace lve{
             return caches;
         }
 
+        std::size_t simpleObjectCacheCount() const { return simpleObjectCaches.size(); }
+        std::size_t spriteObjectCacheCount() const { return spriteObjectCaches.size(); }
+        std::size_t subMeshObjectCacheCount() const { return subMeshObjectCaches.size(); }
+
+        std::size_t subMeshCacheCount() const {
+            std::size_t count = 0;
+            for (const auto &kv : subMeshObjectCaches) {
+                count += kv.second.size();
+            }
+            return count;
+        }
+
     private:
         std::unordered_map<LveGameObject::id_t, DescriptorSetCacheEntry> simpleObjectCaches{};
         std::unordered_map<LveGameObject::id_t, DescriptorSetCacheEntry> spriteObjectCaches{};

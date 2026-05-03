@@ -4,11 +4,13 @@ layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 color;
 layout(location = 2) in vec3 normal;
 layout(location = 3) in vec2 uv;
+layout(location = 4) in vec4 tangent;
 
 layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec3 fragPosWorld;
 layout(location = 2) out vec3 fragNormalWorld;
 layout(location = 3) out vec2 fragUv;
+layout(location = 4) out vec4 fragTangentWorld;
 
 struct PointLight {
   vec4 position; // ignore w
@@ -37,6 +39,8 @@ void main() {
   gl_Position = ubo.projection * ubo.view * positionWorld;
   mat3 normalMatrix = transpose(inverse(mat3(push.modelMatrix)));
   fragNormalWorld = normalize(normalMatrix * normal);
+  vec3 tangentWorld = mat3(push.modelMatrix) * tangent.xyz;
+  fragTangentWorld = vec4(tangentWorld, tangent.w);
   fragPosWorld = positionWorld.xyz;
   fragColor = color;
   fragUv = uv;

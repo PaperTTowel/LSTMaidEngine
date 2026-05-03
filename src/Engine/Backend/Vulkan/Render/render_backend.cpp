@@ -64,6 +64,10 @@ namespace lve::backend {
     return renderer.getFrameindex();
   }
 
+  RenderDebugStats VulkanRenderBackend::getDebugStats() const {
+    return renderContext.getDebugStats();
+  }
+
   void VulkanRenderBackend::setWireframe(bool enabled) {
     renderContext.simpleSystem().setWireframe(enabled);
   }

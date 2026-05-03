@@ -23,7 +23,7 @@ namespace std {
   struct hash<lve::backend::ModelVertex> {
     size_t operator()(lve::backend::ModelVertex const &vertex) const {
       size_t seed = 0;
-      lve::hashCombine(seed, vertex.position, vertex.color, vertex.normal, vertex.uv);
+      lve::hashCombine(seed, vertex.position, vertex.color, vertex.normal, vertex.uv, vertex.tangent);
       return seed;
     }
   };
@@ -152,6 +152,16 @@ namespace lve {
           if (mesh->HasTextureCoords(0)) {
             const aiVector3D &uv = mesh->mTextureCoords[0][index];
             vertex.uv = {uv.x, uv.y};
+          }
+
+          if (mesh->HasTangentsAndBitangents()) {
+            const aiVector3D &t = mesh->mTangents[index];
+            const aiVector3D &b = mesh->mBitangents[index];
+            const glm::vec3 tangent{t.x, t.y, t.z};
+            const glm::vec3 bitangent{b.x, b.y, b.z};
+            const float handedness =
+                glm::dot(glm::cross(vertex.normal, tangent), bitangent) < 0.0f ? -1.0f : 1.0f;
+            vertex.tangent = {tangent.x, tangent.y, tangent.z, handedness};
           }
 
           if (mesh->HasVertexColors(0)) {

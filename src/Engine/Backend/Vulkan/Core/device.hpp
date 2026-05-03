@@ -50,6 +50,21 @@ class LveDevice {
   VkInstance getInstance() { return instance; }
   VkPhysicalDevice getPhysicalDevice() { return physicalDevice; }
   void setObjectName(uint64_t objectHandle, VkObjectType objectType, const char *name) const;
+  void beginDebugLabel(
+      VkCommandBuffer commandBuffer,
+      const char *name,
+      float r,
+      float g,
+      float b,
+      float a = 1.0f) const;
+  void endDebugLabel(VkCommandBuffer commandBuffer) const;
+  void insertDebugLabel(
+      VkCommandBuffer commandBuffer,
+      const char *name,
+      float r,
+      float g,
+      float b,
+      float a = 1.0f) const;
 
   SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(physicalDevice); }
   uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
@@ -99,7 +114,6 @@ class LveDevice {
   std::vector<const char *> getRequiredExtensions();
   bool checkValidationLayerSupport();
   QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
-  void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo);
   void hasGflwRequiredInstanceExtensions();
   bool checkDeviceExtensionSupport(VkPhysicalDevice device);
   SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);

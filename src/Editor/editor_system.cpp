@@ -59,6 +59,7 @@ namespace lve {
     const glm::mat4 &view,
     const glm::mat4 &projection,
     backend::RenderExtent viewportExtent,
+    const backend::RenderDebugStats &renderDebugStats,
     editor::ResourceBrowserState &resourceBrowserState,
     void *sceneViewTextureId,
     void *gameViewTextureId) {
@@ -83,6 +84,7 @@ namespace lve {
       view,
       projection,
       viewportExtent,
+      renderDebugStats,
       resourceBrowserState,
       sceneViewTextureId,
       gameViewTextureId);
@@ -121,6 +123,7 @@ namespace lve {
     const glm::mat4 &view,
     const glm::mat4 &projection,
     backend::RenderExtent viewportExtent,
+    const backend::RenderDebugStats &renderDebugStats,
     editor::ResourceBrowserState &resourceBrowserState,
     void *sceneViewTextureId,
     void *gameViewTextureId) {
@@ -207,6 +210,7 @@ namespace lve {
           ImGui::MenuItem("Resource Browser", nullptr, &showResourceBrowser);
           ImGui::MenuItem("Scene View", nullptr, &showSceneView);
           ImGui::MenuItem("Game View", nullptr, &showGameView);
+          ImGui::MenuItem("Renderer Debug", nullptr, &showRendererDebug);
           ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("View")) {
@@ -368,6 +372,33 @@ namespace lve {
             IM_COL32(255, 200, 120, 255),
             kGameViewCameraWarning);
         }
+      }
+      ImGui::End();
+    }
+
+    if (showRendererDebug) {
+      if (ImGui::Begin("Renderer Debug", &showRendererDebug)) {
+        ImGui::Text("Frame index: %d", renderDebugStats.frameIndex);
+        ImGui::Text("Swapchain images: %zu", renderDebugStats.swapChainImageCount);
+        ImGui::Separator();
+        ImGui::Text(
+          "Scene view: %u x %u",
+          renderDebugStats.sceneViewExtent.width,
+          renderDebugStats.sceneViewExtent.height);
+        ImGui::Text(
+          "Game view: %u x %u",
+          renderDebugStats.gameViewExtent.width,
+          renderDebugStats.gameViewExtent.height);
+        ImGui::Separator();
+        ImGui::Text("Retired offscreen targets: %zu", renderDebugStats.retiredOffscreenTargets);
+        ImGui::Text("Simple descriptor caches: %zu", renderDebugStats.simpleDescriptorCaches);
+        ImGui::Text("Sprite descriptor caches: %zu", renderDebugStats.spriteDescriptorCaches);
+        ImGui::Text("Submesh descriptor objects: %zu", renderDebugStats.subMeshDescriptorObjects);
+        ImGui::Text("Submesh descriptor caches: %zu", renderDebugStats.subMeshDescriptorCaches);
+        ImGui::Separator();
+        ImGui::Text("Wireframe: %s", renderDebugStats.wireframeEnabled ? "on" : "off");
+        ImGui::Text("Normal view: %s", renderDebugStats.normalViewEnabled ? "on" : "off");
+        ImGui::Text("Swapchain recreated: %s", renderDebugStats.swapChainRecreated ? "yes" : "no");
       }
       ImGui::End();
     }

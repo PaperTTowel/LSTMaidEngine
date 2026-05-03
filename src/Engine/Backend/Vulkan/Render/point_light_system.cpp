@@ -92,6 +92,7 @@ namespace lve{
     }
 
     void PointLightSystem::render(FrameInfo &frameInfo){
+        lveDevice.beginDebugLabel(frameInfo.commandBuffer, "Point Light Render System", 0.95f, 0.9f, 0.2f);
         // sort lights by distance (back-to-front)
         std::vector<LveGameObject*> sorted;
         sorted.reserve(frameInfo.gameObjects.size());
@@ -144,5 +145,6 @@ namespace lve{
             );
             vkCmdDraw(frameInfo.commandBuffer, 6, 1, 0, 0);
         }
+        lveDevice.endDebugLabel(frameInfo.commandBuffer);
     }
 } // namespace lve

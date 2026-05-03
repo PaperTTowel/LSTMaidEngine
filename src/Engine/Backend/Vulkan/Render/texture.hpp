@@ -15,6 +15,12 @@ class LveTexture : public backend::RenderTexture {
   LveTexture(LveDevice &device, const unsigned char *rgbaPixels, int width, int height);
   LveTexture(
       LveDevice &device,
+      const unsigned char *rgbaPixels,
+      int width,
+      int height,
+      const backend::TextureLoadOptions &options);
+  LveTexture(
+      LveDevice &device,
       VkFormat format,
       VkExtent3D extent,
       VkImageUsageFlags usage,
@@ -39,12 +45,21 @@ class LveTexture : public backend::RenderTexture {
       VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout);
 
   static std::unique_ptr<LveTexture> createTextureFromRgba(
-      LveDevice &device, const unsigned char *rgbaPixels, int width, int height);
+      LveDevice &device,
+      const unsigned char *rgbaPixels,
+      int width,
+      int height,
+      const backend::TextureLoadOptions &options = {});
 
  private:
-  void createTextureImageFromPixels(const unsigned char *pixels, int texWidth, int texHeight);
+  void createTextureImageFromPixels(
+      const unsigned char *pixels,
+      int texWidth,
+      int texHeight,
+      const backend::TextureLoadOptions &options);
   void createTextureImageView(VkImageViewType viewType);
   void createTextureSampler();
+  void generateMipmaps(int32_t texWidth, int32_t texHeight);
 
   VkDescriptorImageInfo mDescriptor{};
 

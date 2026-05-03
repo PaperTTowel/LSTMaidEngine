@@ -1,9 +1,9 @@
 #pragma once
 
+#include "Editor/editor_backend.hpp"
 #include "Editor/editor_frame_controller.hpp"
 #include "Editor/editor_render_frame_coordinator.hpp"
 #include "Editor/editor_system.hpp"
-#include "Engine/Backend/runtime_backend.hpp"
 #include "Engine/game_frame_controller.hpp"
 
 #include <memory>
@@ -24,7 +24,7 @@ namespace lve {
     void run();
 
   private:
-    std::unique_ptr<backend::RuntimeBackend> runtime;
+    EditorBackend backend;
     std::unique_ptr<EditorSystem> editorSystem;
     EditorFrameController editorFrameController;
     GameFrameController gameFrameController;

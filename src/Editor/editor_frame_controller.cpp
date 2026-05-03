@@ -88,6 +88,7 @@ namespace lve {
       editorCamera.getView(),
       editorCamera.getProjection(),
       backend::RenderExtent{sceneWidth, sceneHeight},
+      renderBackend.getDebugStats(),
       resourceBrowserState,
       renderBackend.getSceneViewDescriptor(),
       renderBackend.getGameViewDescriptor());

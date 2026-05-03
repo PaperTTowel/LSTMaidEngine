@@ -1,40 +1,35 @@
 #include "Editor/editor.hpp"
 
-#include "Engine/Backend/Factory/runtime_backend_factory.hpp"
 #include "Engine/scene_system.hpp"
 
 #include <chrono>
-#include <stdexcept>
 
 namespace lve {
   namespace {
-    std::unique_ptr<backend::RuntimeBackend> createRuntime() {
+    backend::RuntimeBackendConfig createEditorBackendConfig() {
       backend::RuntimeBackendConfig config{};
       config.api = backend::BackendApi::Vulkan;
       config.width = Editor::WIDTH;
       config.height = Editor::HEIGHT;
       config.title = "PaperTTowelEngine";
-      auto runtimeBackend = backend::createRuntimeBackend(config);
-      if (!runtimeBackend) {
-        throw std::runtime_error("Runtime backend initialization failed.");
-      }
-      return runtimeBackend;
+      return config;
     }
   } // namespace
 
   Editor::Editor()
-    : runtime{createRuntime()}
-    , editorSystem{std::make_unique<EditorSystem>(runtime->editorBackend())} {
-    auto &sceneSystem = runtime->sceneSystem();
+    : backend{createEditorBackend(createEditorBackendConfig())}
+    , editorSystem{std::make_unique<EditorSystem>(backend.editorRender())} {
+    auto &sceneSystem = backend.runtime().sceneSystem();
     sceneSystem.loadGameObjects();
   }
 
   Editor::~Editor() {}
 
   void Editor::run() {
-    auto &sceneSystem = runtime->sceneSystem();
-    auto &renderBackend = runtime->renderBackend();
-    auto &window = runtime->window();
+    auto &runtime = backend.runtime();
+    auto &sceneSystem = runtime.sceneSystem();
+    auto &renderBackend = runtime.renderBackend();
+    auto &window = runtime.window();
     auto &input = window.input();
 
     SpriteAnimator *spriteAnimator = sceneSystem.getSpriteAnimator();
@@ -95,7 +90,7 @@ namespace lve {
     }
 
     editorSystem->shutdown();
-    runtime->editorBackend().waitIdle();
+    backend.editorRender().waitIdle();
   }
 
 } // namespace lve

@@ -133,6 +133,17 @@ namespace lve {
     }
   }
 
+  backend::TextureLoadOptions SceneSystem::textureLoadOptionsForAsset(const std::string &assetPath) const {
+    backend::TextureLoadOptions options{};
+    if (const auto *meta = assetDatabase.getMetaForPath(assetPath)) {
+      if (meta->type == AssetType::Texture) {
+        options.sRGB = meta->textureSettings.sRGB;
+        options.generateMipmaps = meta->textureSettings.generateMipmaps;
+      }
+    }
+    return options;
+  }
+
   std::shared_ptr<backend::RenderModel> SceneSystem::loadModelCached(const std::string &path) {
     if (path.empty()) return {};
     const std::string assetPath = path;
@@ -283,7 +294,12 @@ namespace lve {
     }
     playerMeta = meta;
     assetDefaults.activeSpriteMetaPath = assetPath;
-    spriteAnimator = std::make_unique<SpriteAnimator>(assetFactory, playerMeta);
+    spriteAnimator = std::make_unique<SpriteAnimator>(
+      assetFactory,
+      playerMeta,
+      [this](const std::string &assetPath) {
+        return textureLoadOptionsForAsset(assetPath);
+      });
 
     for (auto &kv : gameObjectManager.gameObjects) {
       auto &obj = kv.second;
@@ -574,7 +590,12 @@ namespace lve {
     if (!setActiveSpriteMetadata(metaPath)) {
       std::cerr << "Falling back to previous sprite metadata\n";
       if (!spriteAnimator) {
-        spriteAnimator = std::make_unique<SpriteAnimator>(assetFactory, playerMeta);
+        spriteAnimator = std::make_unique<SpriteAnimator>(
+          assetFactory,
+          playerMeta,
+          [this](const std::string &assetPath) {
+            return textureLoadOptionsForAsset(assetPath);
+          });
       }
     }
 
@@ -722,7 +743,12 @@ namespace lve {
       playerMeta.states["idle"] = idle;
       playerMeta.states["walking"] = walk;
     }
-    spriteAnimator = std::make_unique<SpriteAnimator>(assetFactory, playerMeta);
+    spriteAnimator = std::make_unique<SpriteAnimator>(
+      assetFactory,
+      playerMeta,
+      [this](const std::string &assetPath) {
+        return textureLoadOptionsForAsset(assetPath);
+      });
 
     auto &characterObj = createSpriteObject({0.f, 0.f, 0.f}, ObjectState::IDLE, assetDefaults.activeSpriteMetaPath);
     characterId = characterObj.getId();

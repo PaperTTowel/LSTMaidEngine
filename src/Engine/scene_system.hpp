@@ -97,6 +97,7 @@ namespace lve {
   private:
     static ObjectState objectStateFromString(const std::string &name);
     static std::string objectStateToString(ObjectState state);
+    backend::TextureLoadOptions textureLoadOptionsForAsset(const std::string &assetPath) const;
 
     backend::RenderAssetFactory &assetFactory;
     LveGameObjectManager gameObjectManager;

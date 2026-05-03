@@ -5,6 +5,7 @@
 #include "utils/sprite_metadata.hpp"
 
 // std
+#include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -13,7 +14,12 @@ namespace lve {
 
   class SpriteAnimator {
   public:
-    explicit SpriteAnimator(backend::RenderAssetFactory &assets, SpriteMetadata meta);
+    using TextureOptionsResolver = std::function<backend::TextureLoadOptions(const std::string &)>;
+
+    explicit SpriteAnimator(
+      backend::RenderAssetFactory &assets,
+      SpriteMetadata meta,
+      TextureOptionsResolver textureOptionsResolver = {});
 
     bool applySpriteState(LveGameObject &character, const std::string &stateName);
     bool applySpriteState(LveGameObject &character, ObjectState desiredState);
@@ -25,6 +31,7 @@ namespace lve {
 
     backend::RenderAssetFactory &assets;
     SpriteMetadata metadata;
+    TextureOptionsResolver textureOptionsResolver;
     std::unordered_map<std::string, std::shared_ptr<backend::RenderTexture>> textureCache;
     std::string currentTexturePath;
   };

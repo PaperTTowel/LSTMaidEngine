@@ -78,6 +78,10 @@ namespace lve {
     config.renderPass = renderPass;
     config.pipelineLayout = pipelineLayout;
     config.rasterizationInfo.cullMode = VK_CULL_MODE_NONE;
+    if (!config.attributeDescriptions.empty() &&
+        config.attributeDescriptions.back().location == 4) {
+      config.attributeDescriptions.pop_back();
+    }
 
     // enable alpha blending for sprites
     config.colorBlendAttachment.blendEnable = VK_TRUE;
@@ -100,6 +104,7 @@ namespace lve {
   }
 
   void SpriteRenderSystem::renderSprites(FrameInfo &frameInfo) {
+    lveDevice.beginDebugLabel(frameInfo.commandBuffer, "Sprite Render System", 0.8f, 0.35f, 0.95f);
     spritePipeline->bind(frameInfo.commandBuffer);
 
     vkCmdBindDescriptorSets(
@@ -210,6 +215,7 @@ namespace lve {
       model->bind(frameInfo.commandBuffer);
       model->draw(frameInfo.commandBuffer);
     }
+    lveDevice.endDebugLabel(frameInfo.commandBuffer);
   }
 } // namespace lve
 #include "Engine/camera.hpp"

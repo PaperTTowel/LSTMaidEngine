@@ -39,6 +39,7 @@ namespace lve {
     VkDescriptorSet getGameViewDescriptor() const;
     VkExtent2D getSceneViewExtent() const;
     VkExtent2D getGameViewExtent() const;
+    backend::RenderDebugStats getDebugStats() const;
 
     FrameInfo makeFrameInfo(
       float frameTime,
@@ -66,10 +67,18 @@ namespace lve {
       VkDescriptorSet imguiDescriptor{VK_NULL_HANDLE};
     };
 
+    struct RetiredOffscreenTarget {
+      OffscreenTarget target{};
+      int framesRemaining{2};
+    };
+
     void createBuffersAndDescriptors();
     void createOffscreenRenderPass();
     void destroyOffscreenRenderPass();
     void destroyOffscreenTarget(OffscreenTarget &target);
+    void retireOffscreenTarget(OffscreenTarget &target);
+    void destroyRetiredOffscreenTargets();
+    void collectRetiredOffscreenTargets();
     void createOffscreenTarget(OffscreenTarget &target, VkExtent2D extent, const char *debugName);
     void beginOffscreenRenderPass(VkCommandBuffer commandBuffer, const OffscreenTarget &target);
     void createRenderSystems();
@@ -94,6 +103,7 @@ namespace lve {
     VkFormat offscreenDepthFormat{VK_FORMAT_UNDEFINED};
     OffscreenTarget sceneViewTarget{};
     OffscreenTarget gameViewTarget{};
+    std::vector<RetiredOffscreenTarget> retiredOffscreenTargets{};
     bool swapChainRecreated{false};
   };
 } // namespace lve

@@ -53,6 +53,7 @@ namespace lve {
       const glm::mat4 &view,
       const glm::mat4 &projection,
       backend::RenderExtent viewportExtent,
+      const backend::RenderDebugStats &renderDebugStats,
       editor::ResourceBrowserState &resourceBrowserState,
       void *sceneViewTextureId,
       void *gameViewTextureId);
@@ -106,6 +107,7 @@ namespace lve {
     ImportOptionsState importOptions;
     bool showSceneView{true};
     bool showGameView{true};
+    bool showRendererDebug{false};
     editor::FileDialogState fileDialogState;
     editor::MaterialPickResult pendingMaterialPick{};
     editor::MaterialTextureSlot pendingMaterialPickSlot{editor::MaterialTextureSlot::BaseColor};
@@ -125,6 +127,7 @@ namespace lve {
       const glm::mat4 &view,
       const glm::mat4 &projection,
       backend::RenderExtent viewportExtent,
+      const backend::RenderDebugStats &renderDebugStats,
       editor::ResourceBrowserState &resourceBrowserState,
       void *sceneViewTextureId,
       void *gameViewTextureId);

@@ -4,7 +4,6 @@
 #include "Engine/Backend/Vulkan/Core/device.hpp"
 #include "Engine/Backend/Window/glfw_input.hpp"
 #include "Engine/Backend/Window/window_backend.hpp"
-#include "Engine/Backend/Vulkan/Editor/editor_render_backend.hpp"
 #include "Engine/Backend/Vulkan/Render/asset_factory.hpp"
 #include "Engine/Backend/Vulkan/Render/render_backend.hpp"
 #include "Engine/scene_system.hpp"
@@ -19,8 +18,9 @@ namespace lve::backend {
 
     WindowBackend &window() override { return windowBackend; }
     RenderBackend &renderBackend() override { return renderBackendImpl; }
-    EditorRenderBackend &editorBackend() override { return editorBackendImpl; }
     SceneSystem &sceneSystem() override { return sceneSystemImpl; }
+    LveWindow &nativeWindow() { return windowImpl; }
+    LveDevice &vulkanDevice() { return device; }
 
   private:
     LveWindow windowImpl;
@@ -30,6 +30,5 @@ namespace lve::backend {
     VulkanRenderAssetFactory assetFactory;
     SceneSystem sceneSystemImpl;
     VulkanRenderBackend renderBackendImpl;
-    VulkanEditorRenderBackend editorBackendImpl;
   };
 } // namespace lve::backend

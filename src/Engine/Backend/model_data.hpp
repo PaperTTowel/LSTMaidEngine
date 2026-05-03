@@ -13,9 +13,11 @@ namespace lve::backend {
     glm::vec3 color{};
     glm::vec3 normal{};
     glm::vec2 uv{};
+    glm::vec4 tangent{};
 
     bool operator==(const ModelVertex &other) const {
-      return position == other.position && color == other.color && normal == other.normal && uv == other.uv;
+      return position == other.position && color == other.color && normal == other.normal &&
+             uv == other.uv && tangent == other.tangent;
     }
   };
 
