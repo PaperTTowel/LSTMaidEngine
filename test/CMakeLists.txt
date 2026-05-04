@@ -1,10 +1,7 @@
 function(add_engine_test target)
     add_executable(${target} ${ARGN})
-    target_include_directories(${target} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_SOURCE_DIR}/external/glm
-    )
+    target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(${target} PRIVATE ${PROJECT_NAME}Lib)
     target_compile_definitions(${target} PRIVATE
         TEST_OUTPUT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/test_output"
     )
@@ -13,50 +10,28 @@ endfunction()
 
 add_engine_test(JsonTests
     test_json.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
 )
 
 add_engine_test(SceneSerializerTests
     test_scene_serializer.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/scene.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/runtime_paths.cpp
 )
 
 add_engine_test(MaterialIoTests
     test_material_io.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/IO/material_io.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/runtime_paths.cpp
 )
 
 add_engine_test(SpriteMetadataTests
     test_sprite_metadata.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
-    ${CMAKE_SOURCE_DIR}/src/utils/sprite_metadata.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/runtime_paths.cpp
 )
 
 add_engine_test(AssetDatabaseTests
     test_asset_database.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/asset_database.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/runtime_paths.cpp
 )
 
 add_engine_test(SceneSystemTests
     test_scene_system.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/asset_database.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/IO/json.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/scene.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/scene_system.cpp
-    ${CMAKE_SOURCE_DIR}/src/Engine/runtime_paths.cpp
-    ${CMAKE_SOURCE_DIR}/src/utils/game_object.cpp
-    ${CMAKE_SOURCE_DIR}/src/utils/sprite_animator.cpp
-    ${CMAKE_SOURCE_DIR}/src/utils/sprite_metadata.cpp
 )
 
 add_engine_test(TransformTests
     test_transform.cpp
-    ${CMAKE_SOURCE_DIR}/src/utils/game_object.cpp
 )

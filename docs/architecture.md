@@ -6,7 +6,7 @@
 
 - `src/Engine`  
   런타임 엔진 코어. 엔진 루프, 씬, 렌더링 인터페이스, 공용 타입/유틸.
-- `src/Engine/Backend`  
+- `src/Engine/Rendering`, `src/Engine/Platform`, `src/Backends`
   플랫폼/그래픽스 백엔드 구현. 예: `Vulkan`, `Window`.
 - `src/Engine/IO`  
   CPU 리소스 로딩(파일/디코딩) 계층. GPU 업로드와 분리됨.
@@ -37,7 +37,7 @@
 
 ## 확장 포인트
 
-- 그래픽스 백엔드 추가: `src/Engine/Backend/<API>` 형태로 동일 구조 유지.
+- 그래픽스 백엔드 추가: `src/Backends/<API>` 형태로 동일 구조 유지.
 - 윈도우/입력 교체: `Backend/Window` 계층을 교체.
 - 에셋 파이프라인 확장: `Engine/IO`에서 로더 추가 후, 백엔드 업로더 연결.
 

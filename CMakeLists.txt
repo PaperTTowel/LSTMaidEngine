@@ -31,9 +31,16 @@ file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
 )
 
-add_executable(${PROJECT_NAME} ${ENGINE_SOURCES} ${IMGUI_SOURCES} ${IMGUIZMO_SOURCES})
+set(ENGINE_LIB_SOURCES ${ENGINE_SOURCES})
+list(REMOVE_ITEM ENGINE_LIB_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
 
-target_include_directories(${PROJECT_NAME} PRIVATE
+add_library(${PROJECT_NAME}Lib STATIC
+    ${ENGINE_LIB_SOURCES}
+    ${IMGUI_SOURCES}
+    ${IMGUIZMO_SOURCES}
+)
+
+target_include_directories(${PROJECT_NAME}Lib PUBLIC
     "src"
     "external/glfw/include"
     "external/glm"
@@ -44,13 +51,20 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "external/assimp/include"
 )
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE IMGUI_DEFINE_MATH_OPERATORS)
+target_compile_definitions(${PROJECT_NAME}Lib PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
+target_link_libraries(${PROJECT_NAME}Lib PUBLIC
     Vulkan::Vulkan
-    "${CMAKE_CURRENT_SOURCE_DIR}/external/glfw/lib-vc2022/glfw3.lib"
     assimp
 )
+
+target_link_libraries(${PROJECT_NAME}Lib PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/glfw/lib-vc2022/glfw3.lib"
+)
+
+add_executable(${PROJECT_NAME} src/main.cpp)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}Lib)
 
 # Shader build
 find_program(GLSL_VALIDATOR glslangValidator HINTS
@@ -64,8 +78,8 @@ find_program(GLSL_VALIDATOR glslangValidator HINTS
 )
 
 file(GLOB_RECURSE GLSL_SOURCE_FILES
-    "${PROJECT_SOURCE_DIR}/src/Engine/Backend/Vulkan/Shaders/*.frag"
-    "${PROJECT_SOURCE_DIR}/src/Engine/Backend/Vulkan/Shaders/*.vert"
+    "${PROJECT_SOURCE_DIR}/src/Backends/Vulkan/Shaders/*.frag"
+    "${PROJECT_SOURCE_DIR}/src/Backends/Vulkan/Shaders/*.vert"
 )
 
 set(SHADER_OUTPUT_DIR "${CMAKE_BINARY_DIR}/Shaders")

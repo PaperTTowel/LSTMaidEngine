@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Engine/material_data.hpp"
+#include "Engine/Assets/material_data.hpp"
 
 #include <functional>
 #include <string>

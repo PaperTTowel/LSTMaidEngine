@@ -1,8 +1,8 @@
 #include "test_harness.hpp"
 
-#include "Engine/Backend/object_buffer.hpp"
-#include "Engine/Backend/render_assets.hpp"
-#include "Engine/scene_system.hpp"
+#include "Engine/Rendering/object_buffer.hpp"
+#include "Engine/Rendering/render_assets.hpp"
+#include "Engine/Scene/scene_system.hpp"
 
 #include <memory>
 #include <unordered_map>

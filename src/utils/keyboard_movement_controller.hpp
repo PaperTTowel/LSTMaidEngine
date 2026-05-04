@@ -1,7 +1,7 @@
 #pragma once
 
-#include "game_object.hpp"
-#include "Engine/Backend/input.hpp"
+#include "Engine/Scene/game_object.hpp"
+#include "Engine/Rendering/input.hpp"
 
 namespace lve {
   class KeyboardMovementController {

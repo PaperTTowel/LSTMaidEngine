@@ -1,6 +1,6 @@
 #include "inspector_panel.hpp"
 
-#include "Engine/Backend/editor_render_backend.hpp"
+#include "Engine/Rendering/editor_render_backend.hpp"
 
 #include <imgui.h>
 #include <ImGuizmo.h>

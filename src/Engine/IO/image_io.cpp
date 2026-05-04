@@ -1,6 +1,6 @@
 #include "Engine/IO/image_io.hpp"
 
-#include "Engine/runtime_paths.hpp"
+#include "Engine/Core/runtime_paths.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>

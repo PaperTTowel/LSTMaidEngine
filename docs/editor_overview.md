@@ -12,7 +12,7 @@
   패널, 위젯, 공용 UI 컴포넌트.
 - `src/Editor/Workflow`  
   워크플로/불러오기/내보내기 흐름.
-- `src/Editor/editor_system.cpp`  
+- `src/Editor/Core/editor_system.cpp`
   에디터 전체 초기화 및 업데이트 오케스트레이션.
 
 ## 의존 방향

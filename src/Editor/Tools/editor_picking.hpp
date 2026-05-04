@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Editor/viewport_info.hpp"
+#include "Editor/Core/viewport_info.hpp"
 
 #include <glm/glm.hpp>
 

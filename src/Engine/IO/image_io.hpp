@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Engine/Backend/model_data.hpp"
+#include "Engine/Rendering/model_data.hpp"
 #include "Engine/IO/image_data.hpp"
 
 #include <cstddef>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/game_object.hpp"
+#include "Engine/Scene/game_object.hpp"
 
 #include <optional>
 #include <vector>

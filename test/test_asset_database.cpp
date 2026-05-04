@@ -1,6 +1,6 @@
 #include "test_harness.hpp"
 
-#include "Engine/asset_database.hpp"
+#include "Engine/Assets/asset_database.hpp"
 
 namespace {
 

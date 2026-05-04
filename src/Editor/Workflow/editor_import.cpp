@@ -1,7 +1,7 @@
 #include "Editor/Workflow/editor_import.hpp"
 
 #include "Engine/IO/material_io.hpp"
-#include "Engine/scene_system.hpp"
+#include "Engine/Scene/scene_system.hpp"
 
 #include <algorithm>
 #include <cctype>

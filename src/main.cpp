@@ -1,4 +1,4 @@
-#include "Editor/editor.hpp"
+#include "Editor/Core/editor.hpp"
 
 // std
 #include <cstdlib>

@@ -1,0 +1,184 @@
+#pragma once
+
+#include "Engine/Rendering/object_buffer.hpp"
+#include "Engine/Rendering/render_assets.hpp"
+#include "Engine/Assets/sprite_metadata.hpp"
+#include "Engine/Scene/scene.hpp"
+// #include "physics/physics_engine.hpp"
+
+// libs
+#include <glm/gtc/matrix_transform.hpp>
+
+// std
+#include <string>
+#include <memory>
+#include <optional>
+#include <stdexcept>
+#include <unordered_map>
+#include <vector>
+
+namespace lve {
+
+  struct TransformComponent {
+    glm::vec3 translation{}; // (position offset)
+    glm::vec3 scale{1.f, 1.f, 1.f};
+    glm::vec3 rotation{};
+
+    // Matrix corrsponds to Translate * Ry * Rx * Rz * Scale
+    // Rotations correspond to Tait-bryan angles of Y(1), X(2), Z(3)
+    // https://en.wikipedia.org/wiki/Euler_angles#Rotation_matrix
+    glm::mat4 mat4() const;
+    glm::mat3 normalMatrix() const;
+  };
+
+  struct PointLightComponent {
+    float lightIntensity = 1.0f;
+  };
+
+  struct GameObjectBufferData {
+    glm::mat4 modelMatrix{1.f};
+    glm::mat4 normalMatrix{1.f};
+  };
+
+  struct NodeTransformOverride {
+    bool enabled{false};
+    TransformComponent transform{};
+  };
+
+  struct MaterialTextureBindings {
+    const backend::RenderTexture *baseColor{nullptr};
+    const backend::RenderTexture *normal{nullptr};
+    const backend::RenderTexture *metallicRoughness{nullptr};
+    const backend::RenderTexture *occlusion{nullptr};
+    const backend::RenderTexture *emissive{nullptr};
+
+    bool operator==(const MaterialTextureBindings &other) const {
+      return baseColor == other.baseColor &&
+        normal == other.normal &&
+        metallicRoughness == other.metallicRoughness &&
+        occlusion == other.occlusion &&
+        emissive == other.emissive;
+    }
+    bool operator!=(const MaterialTextureBindings &other) const {
+      return !(*this == other);
+    }
+  };
+
+  class LveGameObjectManager; // forward declare game object manager class
+
+  enum class ObjectState { WALKING, IDLE };
+  enum class BillboardMode { None, Cylindrical, Spherical };
+  enum class Direction { UP, DOWN, LEFT, RIGHT };
+  class LveGameObject {
+  public:
+    using id_t = unsigned int;
+    using Map = std::unordered_map<id_t, LveGameObject>;
+    int enableTextureType{0};
+    int currentFrame{0};
+    ObjectState objState = ObjectState::IDLE;
+    Direction directions = Direction::RIGHT;
+    bool isSprite = false; // mark objects that should render via 2D sprite pipeline
+    BillboardMode billboardMode = BillboardMode::None;
+    float animationTimeAccumulator = 0.0f;
+    int atlasColumns{1};
+    int atlasRows{1};
+    SpriteStateInfo spriteState{};
+    bool hasSpriteState{false};
+    std::string spriteMetaPath;
+    std::string spriteStateName;
+    std::string modelPath;
+    std::string materialPath;
+    std::string name;
+
+    bool hasPhysics = false;
+    bool transformDirty{true};
+    std::vector<NodeTransformOverride> nodeOverrides{};
+
+    LveGameObject(LveGameObject &&) = default;
+    LveGameObject(const LveGameObject &) = delete;
+    LveGameObject &operator=(const LveGameObject &) = delete;
+    LveGameObject &operator=(LveGameObject &&) = delete;
+
+    id_t getId() const { return id; }
+
+    backend::BufferInfo getBufferInfo(int frameIndex);
+
+    glm::vec3 color{};
+    TransformComponent transform{};
+
+    // Optional pointer components
+    std::shared_ptr<backend::RenderModel> model{};
+    std::shared_ptr<backend::RenderMaterial> material{};
+    std::shared_ptr<backend::RenderTexture> diffuseMap = nullptr;
+    std::unique_ptr<PointLightComponent> pointLight = nullptr;
+    std::optional<CameraComponent> camera{};
+
+  private:
+    LveGameObject(id_t objId, const LveGameObjectManager &manager);
+    id_t id;
+    const LveGameObjectManager &gameObjectManager;
+
+    friend class LveGameObjectManager;
+  };
+
+  class LveGameObjectManager {
+  public:
+    static constexpr int MAX_GAME_OBJECTS = 1000;
+
+    LveGameObjectManager(
+      backend::ObjectBufferPoolPtr objectBuffers,
+      std::shared_ptr<backend::RenderTexture> defaultTexture);
+    LveGameObjectManager(const LveGameObjectManager &) = delete;
+    LveGameObjectManager &operator=(const LveGameObjectManager &) = delete;
+    LveGameObjectManager(LveGameObjectManager &&) = delete;
+    LveGameObjectManager &operator=(LveGameObjectManager &&) = delete;
+
+    LveGameObject &createGameObject() {
+      LveGameObject::id_t newId = 0;
+      if (!freeIds.empty()) {
+        newId = freeIds.back();
+        freeIds.pop_back();
+      } else {
+        if (currentId >= MAX_GAME_OBJECTS) {
+          throw std::runtime_error("Max game object count exceeded");
+        }
+        newId = currentId++;
+      }
+      auto gameObject = LveGameObject{newId, *this};
+      auto gameObjectId = gameObject.getId();
+      gameObject.diffuseMap = textureDefault;
+      gameObjects.emplace(gameObjectId, std::move(gameObject));
+      return gameObjects.at(gameObjectId);
+    }
+    LveGameObject &createGameObjectWithId(LveGameObject::id_t id);
+
+    LveGameObject &makePointLight(
+      float intensity = 10.f, float radius = 0.1f, glm::vec3 color = glm::vec3(1.f));
+    LveGameObject &makePointLightWithId(
+      LveGameObject::id_t id,
+      float intensity = 10.f,
+      float radius = 0.1f,
+      glm::vec3 color = glm::vec3(1.f));
+    bool destroyGameObject(LveGameObject::id_t id);
+    void clearAll();
+    void clearAllExcept(std::optional<LveGameObject::id_t> protectedId);
+
+    backend::BufferInfo getBufferInfoForGameObject(
+      int frameIndex, LveGameObject::id_t gameObjectId) const;
+
+    void updateFrame(LveGameObject &character, int maxFrames, float frameTime, float animationSpeed);
+    void updateBuffer(int frameIndex);
+
+    LveGameObject::Map gameObjects{};
+    backend::ObjectBufferPoolPtr objectBuffers;
+
+    // std::unique_ptr<PhysicsEngine> physicsEngine;
+
+  private:
+    LveGameObject::id_t currentId = 0;
+    std::vector<LveGameObject::id_t> freeIds;
+    std::shared_ptr<backend::RenderTexture> textureDefault;
+  };
+} // namespace lve
+
+

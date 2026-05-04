@@ -1,7 +1,7 @@
 #include "Engine/IO/material_io.hpp"
 
 #include "Engine/IO/json.hpp"
-#include "Engine/runtime_paths.hpp"
+#include "Engine/Core/runtime_paths.hpp"
 
 #include <filesystem>
 #include <fstream>

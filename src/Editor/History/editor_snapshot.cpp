@@ -1,7 +1,7 @@
 #include "Editor/History/editor_snapshot.hpp"
 
-#include "Engine/scene_system.hpp"
-#include "utils/sprite_animator.hpp"
+#include "Engine/Scene/scene_system.hpp"
+#include "Engine/Assets/sprite_animator.hpp"
 
 namespace lve::editor {
 

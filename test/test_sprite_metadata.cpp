@@ -1,6 +1,6 @@
 #include "test_harness.hpp"
 
-#include "utils/sprite_metadata.hpp"
+#include "Engine/Assets/sprite_metadata.hpp"
 
 namespace {
 

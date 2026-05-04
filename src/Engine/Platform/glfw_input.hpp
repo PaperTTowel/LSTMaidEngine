@@ -1,0 +1,16 @@
+#pragma once
+
+#include "Engine/Rendering/input.hpp"
+#include "Engine/Platform/window.hpp"
+
+namespace lve::backend {
+  class GlfwInputProvider final : public InputProvider {
+  public:
+    explicit GlfwInputProvider(LveWindow &window) : window{window} {}
+    bool isKeyPressed(KeyCode code) const override;
+
+  private:
+    static int toGlfwKey(KeyCode code);
+    LveWindow &window;
+  };
+} // namespace lve::backend

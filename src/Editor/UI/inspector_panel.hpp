@@ -1,8 +1,8 @@
 #pragma once
 
-#include "utils/game_object.hpp"
-#include "utils/sprite_animator.hpp"
-#include "Engine/Backend/render_types.hpp"
+#include "Engine/Scene/game_object.hpp"
+#include "Engine/Assets/sprite_animator.hpp"
+#include "Engine/Rendering/render_types.hpp"
 
 #include <glm/glm.hpp>
 

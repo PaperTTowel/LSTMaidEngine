@@ -1,6 +1,6 @@
 #include "test_harness.hpp"
 
-#include "utils/game_object.hpp"
+#include "Engine/Scene/game_object.hpp"
 
 namespace {
 

@@ -10,9 +10,10 @@
 
 ## 디렉터리 규칙
 
-- 기본 위치: `src/Engine/Backend/<API>`
-  - 예) `src/Engine/Backend/Vulkan`
-- 윈도우/입력 공통 계층: `src/Engine/Backend/Window`
+- 기본 위치: `src/Backends/<API>`
+  - 예) `src/Backends/Vulkan`
+- 윈도우/입력 공통 계층: `src/Engine/Platform`
+- 렌더링/런타임 백엔드 인터페이스: `src/Engine/Rendering`
 
 ## 구성 요소(예시)
 

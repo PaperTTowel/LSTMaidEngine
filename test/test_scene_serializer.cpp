@@ -1,6 +1,6 @@
 #include "test_harness.hpp"
 
-#include "Engine/scene.hpp"
+#include "Engine/Scene/scene.hpp"
 
 namespace {
 
