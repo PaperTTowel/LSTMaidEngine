@@ -16,8 +16,8 @@ namespace lve {
       SceneSystem &sceneSystem,
       const Scene &scene,
       std::optional<LveGameObject::id_t> protectedId);
-    static void saveToFile(SceneSystem &sceneSystem, const std::string &path);
-    static void loadFromFile(
+    static bool saveToFile(SceneSystem &sceneSystem, const std::string &path);
+    static bool loadFromFile(
       SceneSystem &sceneSystem,
       const std::string &path,
       std::optional<LveGameObject::id_t> protectedId);

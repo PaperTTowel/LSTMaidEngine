@@ -57,8 +57,8 @@ namespace lve {
     void loadGameObjects();
     Scene exportSceneSnapshot();
     void importSceneSnapshot(const Scene &scene, std::optional<LveGameObject::id_t> protectedId);
-    void saveSceneToFile(const std::string &path);
-    void loadSceneFromFile(const std::string &path, std::optional<LveGameObject::id_t> protectedId);
+    bool saveSceneToFile(const std::string &path);
+    bool loadSceneFromFile(const std::string &path, std::optional<LveGameObject::id_t> protectedId);
 
     std::shared_ptr<backend::RenderModel> loadModelCached(const std::string &path);
     std::shared_ptr<backend::RenderMaterial> loadMaterialCached(const std::string &path);

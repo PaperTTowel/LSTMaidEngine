@@ -39,6 +39,9 @@ namespace lve {
         historyTriggered = true;
       }
     }
+    if (historyTriggered) {
+      markSceneDirty("History changed scene");
+    }
 
     if (!historyTriggered && result.selectedObject) {
       const auto selectedId = result.selectedObject->getId();
@@ -63,6 +66,7 @@ namespace lve {
             obj->transform.scale = after.scale;
             obj->transformDirty = true;
           }});
+        markSceneDirty("Transform modified");
       }
       if (result.inspectorActions.nameChanged) {
         const std::string beforeName = result.inspectorActions.beforeName;
@@ -79,6 +83,7 @@ namespace lve {
             if (!obj) return;
             obj->name = afterName;
           }});
+        markSceneDirty("Object renamed");
       }
       if (result.inspectorActions.nodeOverridesChanged &&
           result.inspectorActions.nodeOverridesCommitted) {
@@ -114,6 +119,7 @@ namespace lve {
               target[i] = after[i];
             }
           }});
+        markSceneDirty("Node override modified");
       }
     }
 
@@ -156,6 +162,7 @@ namespace lve {
           }
         }
         animator = sceneSystem.getSpriteAnimator();
+        markSceneDirty("Sprite metadata changed");
       }
     }
 
@@ -176,6 +183,7 @@ namespace lve {
         if (!result.selectedObject->materialPath.empty()) {
           sceneSystem.applyMaterialToObject(*result.selectedObject, result.selectedObject->materialPath);
         }
+        markSceneDirty("Mesh changed");
       } catch (const std::exception &e) {
         std::cerr << "Failed to load mesh " << meshPath << ": " << e.what() << "\n";
       }
@@ -186,6 +194,8 @@ namespace lve {
         result.selectedObject->model) {
       if (!sceneSystem.applyMaterialToObject(*result.selectedObject, resourceBrowserState.activeMaterialPath)) {
         std::cerr << "Failed to apply material " << resourceBrowserState.activeMaterialPath << "\n";
+      } else {
+        markSceneDirty("Material changed");
       }
     }
   }
@@ -201,6 +211,11 @@ namespace lve {
       sceneSystem.setActiveCamera(
         result.selectedObject->getId(),
         result.inspectorActions.cameraActive);
+      markSceneDirty("Active camera changed");
+    }
+
+    if (result.inspectorActions.sceneSettingsChanged && result.selectedObject) {
+      markSceneDirty("Scene settings changed");
     }
 
     if (result.inspectorActions.materialPreviewRequested &&
@@ -213,6 +228,7 @@ namespace lve {
           std::cerr << "Failed to apply material " << path << "\n";
         } else {
           resourceBrowserState.activeMaterialPath = path;
+          markSceneDirty("Material changed");
         }
       }
     }
@@ -238,6 +254,7 @@ namespace lve {
         result.selectedObject &&
         result.selectedObject->model) {
       sceneSystem.applyMaterialToObject(*result.selectedObject, {});
+      markSceneDirty("Material cleared");
     }
 
     if (result.inspectorActions.materialLoadRequested &&
@@ -248,6 +265,7 @@ namespace lve {
         std::cerr << "Failed to apply material " << path << "\n";
       } else {
         resourceBrowserState.activeMaterialPath = path;
+        markSceneDirty("Material changed");
       }
     }
 
@@ -269,6 +287,7 @@ namespace lve {
           std::cerr << "Failed to apply material " << path << "\n";
         } else {
           resourceBrowserState.activeMaterialPath = path;
+          markSceneDirty("Material changed");
         }
       }
     }
@@ -435,6 +454,7 @@ namespace lve {
         auto &obj = sceneSystem.createSpriteObject(spawnPos, ObjectState::IDLE, spriteMetaForNew);
         setSelectedId(obj.getId());
         obj.transformDirty = true;
+        markSceneDirty("Sprite created");
         if (!historyTriggered) {
           const editor::GameObjectSnapshot snapshot = editor::CaptureSnapshot(obj);
           history.push({
@@ -453,6 +473,7 @@ namespace lve {
         auto &obj = sceneSystem.createMeshObject(spawnPos, meshPathForNew);
         setSelectedId(obj.getId());
         obj.transformDirty = true;
+        markSceneDirty("Mesh created");
         {
           std::string instancePath;
           std::string error;
@@ -498,6 +519,7 @@ namespace lve {
         auto &obj = sceneSystem.createPointLightObject(spawnPos);
         setSelectedId(obj.getId());
         obj.transformDirty = true;
+        markSceneDirty("Light created");
         if (!historyTriggered) {
           const editor::GameObjectSnapshot snapshot = editor::CaptureSnapshot(obj);
           history.push({
@@ -517,6 +539,7 @@ namespace lve {
         sceneSystem.setActiveCamera(obj.getId(), true);
         setSelectedId(obj.getId());
         obj.transformDirty = true;
+        markSceneDirty("Camera created");
         if (!historyTriggered) {
           const editor::GameObjectSnapshot snapshot = editor::CaptureSnapshot(obj);
           history.push({
@@ -547,6 +570,7 @@ namespace lve {
         }
         if (sceneSystem.destroyObject(*selectedId)) {
           setSelectedId(std::nullopt);
+          markSceneDirty("Object deleted");
           if (!historyTriggered && hasSnapshot) {
             history.push({
               "Delete Object",
@@ -570,14 +594,24 @@ namespace lve {
     SpriteAnimator *&animator,
     LveGameObject::id_t viewerId) {
     if (result.sceneActions.saveRequested) {
-      sceneSystem.saveSceneToFile(getScenePanelState().path);
+      const std::string path = getScenePanelState().path;
+      if (sceneSystem.saveSceneToFile(path)) {
+        markSceneClean(path, "Scene saved");
+      } else {
+        scenePanelState.statusMessage = "Save failed";
+      }
     }
     if (result.sceneActions.loadRequested) {
+      const std::string path = getScenePanelState().path;
       renderBackend.waitIdle();
-      sceneSystem.loadSceneFromFile(getScenePanelState().path, viewerId);
-      animator = sceneSystem.getSpriteAnimator();
-      history.clear();
-      setSelectedId(std::nullopt);
+      if (sceneSystem.loadSceneFromFile(path, viewerId)) {
+        animator = sceneSystem.getSpriteAnimator();
+        history.clear();
+        setSelectedId(std::nullopt);
+        markSceneClean(path, "Scene loaded");
+      } else {
+        scenePanelState.statusMessage = "Load failed";
+      }
     }
   }
 

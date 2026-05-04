@@ -11,6 +11,7 @@
 // std
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace lve {
@@ -111,6 +112,10 @@ namespace lve {
     editor::FileDialogState fileDialogState;
     editor::MaterialPickResult pendingMaterialPick{};
     editor::MaterialTextureSlot pendingMaterialPickSlot{editor::MaterialTextureSlot::BaseColor};
+
+    void markSceneDirty(const char *reason);
+    void markSceneClean(const std::string &path, const char *status);
+    void requestSceneLoad(EditorFrameResult &result);
 
     void buildFrameUI(
       EditorFrameResult &result,

@@ -370,14 +370,14 @@ namespace lve {
     ScenePersistence::importSnapshot(*this, scene, protectedId);
   }
 
-  void SceneSystem::saveSceneToFile(const std::string &path) {
-    ScenePersistence::saveToFile(*this, path);
+  bool SceneSystem::saveSceneToFile(const std::string &path) {
+    return ScenePersistence::saveToFile(*this, path);
   }
 
-  void SceneSystem::loadSceneFromFile(
+  bool SceneSystem::loadSceneFromFile(
     const std::string &path,
     std::optional<LveGameObject::id_t> protectedId) {
-    ScenePersistence::loadFromFile(*this, path, protectedId);
+    return ScenePersistence::loadFromFile(*this, path, protectedId);
   }
 
   void SceneSystem::loadGameObjects() {

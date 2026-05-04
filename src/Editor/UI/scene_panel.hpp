@@ -6,6 +6,11 @@ namespace lve::editor {
 
   struct ScenePanelState {
     std::string path{"Assets/scene.json"};
+    std::string currentPath{"Assets/scene.json"};
+    std::string statusMessage{"Ready"};
+    bool dirty{false};
+    bool loadConfirmRequested{false};
+    bool loadConfirmOpen{false};
   };
 
   struct ScenePanelActions {

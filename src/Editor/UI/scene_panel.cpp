@@ -20,6 +20,8 @@ namespace lve::editor {
     if (ImGui::InputText("Path", buffer, sizeof(buffer))) {
       state.path = buffer;
     }
+    ImGui::Text("Current: %s%s", state.currentPath.c_str(), state.dirty ? " *" : "");
+    ImGui::Text("Status: %s", state.statusMessage.c_str());
     if (ImGui::Button("Save")) {
       actions.saveRequested = true;
     }

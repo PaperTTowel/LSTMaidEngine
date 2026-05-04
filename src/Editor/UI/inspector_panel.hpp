@@ -88,6 +88,7 @@ namespace lve::editor {
     bool materialPreviewRequested{false};
     bool cameraActiveChanged{false};
     bool cameraActive{false};
+    bool sceneSettingsChanged{false};
   };
 
   struct MaterialPickResult {

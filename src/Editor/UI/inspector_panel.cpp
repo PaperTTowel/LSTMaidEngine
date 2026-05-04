@@ -467,8 +467,12 @@ namespace lve::editor {
     if (selected->pointLight) {
       ImGui::Separator();
       ImGui::Text("Light");
-      ImGui::ColorEdit3("Color", &selected->color.x);
-      ImGui::DragFloat("Intensity", &selected->pointLight->lightIntensity, 0.1f, 0.0f, 100.f);
+      if (ImGui::ColorEdit3("Color", &selected->color.x)) {
+        actions.sceneSettingsChanged = true;
+      }
+      if (ImGui::DragFloat("Intensity", &selected->pointLight->lightIntensity, 0.1f, 0.0f, 100.f)) {
+        actions.sceneSettingsChanged = true;
+      }
     }
 
     if (selected->camera) {
@@ -486,14 +490,23 @@ namespace lve::editor {
       const char *projectionLabels[] = { "Perspective", "Orthographic" };
       if (ImGui::Combo("Projection", &projectionMode, projectionLabels, IM_ARRAYSIZE(projectionLabels))) {
         camera.projection = (projectionMode == 1) ? "ortho" : "persp";
+        actions.sceneSettingsChanged = true;
       }
       if (camera.projection == "ortho") {
-        ImGui::DragFloat("Ortho Height", &camera.orthoHeight, 0.1f, 0.1f, 1000.f);
+        if (ImGui::DragFloat("Ortho Height", &camera.orthoHeight, 0.1f, 0.1f, 1000.f)) {
+          actions.sceneSettingsChanged = true;
+        }
       } else {
-        ImGui::SliderFloat("FOV", &camera.fov, 20.f, 120.f);
+        if (ImGui::SliderFloat("FOV", &camera.fov, 20.f, 120.f)) {
+          actions.sceneSettingsChanged = true;
+        }
       }
-      ImGui::DragFloat("Near", &camera.nearPlane, 0.01f, 0.001f, 10.f);
-      ImGui::DragFloat("Far", &camera.farPlane, 1.f, 1.f, 10000.f);
+      if (ImGui::DragFloat("Near", &camera.nearPlane, 0.01f, 0.001f, 10.f)) {
+        actions.sceneSettingsChanged = true;
+      }
+      if (ImGui::DragFloat("Far", &camera.farPlane, 1.f, 1.f, 10000.f)) {
+        actions.sceneSettingsChanged = true;
+      }
     }
 
     if (selected->isSprite && animator) {
@@ -534,6 +547,7 @@ namespace lve::editor {
             selected->objState = ObjectState::IDLE;
           }
           animator->applySpriteState(*selected, chosen);
+          actions.sceneSettingsChanged = true;
         }
       }
 
@@ -541,6 +555,7 @@ namespace lve::editor {
       const char* modeLabels[] = { "None", "Cylindrical", "Spherical" };
       if (ImGui::Combo("Billboard", &mode, modeLabels, IM_ARRAYSIZE(modeLabels))) {
         selected->billboardMode = static_cast<BillboardMode>(mode);
+        actions.sceneSettingsChanged = true;
       }
     }
 

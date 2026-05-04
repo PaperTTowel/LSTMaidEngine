@@ -16,6 +16,34 @@ namespace lve {
   namespace {
     const char *kGameViewCameraWarning = u8"\uC9C0\uC815 Game View \uCE74\uBA54\uB77C\uAC00 \uC0DD\uC131\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.\n"
       u8"\uCE90\uB9AD\uD130 \uACE0\uC815\uC2DC\uC810 \uCE74\uBA54\uB77C\uB85C \uC790\uB3D9\uC73C\uB85C \uC720\uC9C0\uB429\uB2C8\uB2E4";
+
+    void DrawSceneLoadConfirm(editor::ScenePanelState &state, EditorFrameResult &result) {
+      if (state.loadConfirmRequested) {
+        ImGui::OpenPopup("Unsaved Scene Changes");
+        state.loadConfirmRequested = false;
+        state.loadConfirmOpen = true;
+      }
+
+      if (ImGui::BeginPopupModal(
+            "Unsaved Scene Changes",
+            &state.loadConfirmOpen,
+            ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextWrapped("Current scene has unsaved changes.");
+        ImGui::TextWrapped("Load %s and discard them?", state.path.c_str());
+        ImGui::Separator();
+        if (ImGui::Button("Load")) {
+          result.sceneActions.loadRequested = true;
+          state.loadConfirmOpen = false;
+          ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+          state.loadConfirmOpen = false;
+          ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+      }
+    }
   } // namespace
 
   namespace fs = std::filesystem;
@@ -70,7 +98,7 @@ namespace lve {
           result.sceneActions.saveRequested = true;
         }
         if (ImGui::MenuItem("Load Scene")) {
-          result.sceneActions.loadRequested = true;
+          requestSceneLoad(result);
         }
         ImGui::EndMenu();
       }
@@ -361,8 +389,12 @@ namespace lve {
     if (showScene) {
       auto sceneActions = editor::BuildScenePanel(scenePanelState, &showScene);
       result.sceneActions.saveRequested |= sceneActions.saveRequested;
-      result.sceneActions.loadRequested |= sceneActions.loadRequested;
+      if (sceneActions.loadRequested) {
+        requestSceneLoad(result);
+      }
     }
+
+    DrawSceneLoadConfirm(scenePanelState, result);
 
     if (hierarchyState.selectedId) {
       result.selectedObject = sceneSystem.findObject(*hierarchyState.selectedId);

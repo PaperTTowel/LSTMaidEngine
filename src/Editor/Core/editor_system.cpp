@@ -5,6 +5,7 @@
 #include <imgui.h>
 #include <ImGuizmo.h>
 
+#include <string>
 #include <vector>
 
 namespace lve {
@@ -25,6 +26,26 @@ namespace lve {
 
   void EditorSystem::shutdown() {
     renderBackend.shutdown();
+  }
+
+  void EditorSystem::markSceneDirty(const char *reason) {
+    scenePanelState.dirty = true;
+    scenePanelState.statusMessage = reason ? reason : "Modified";
+  }
+
+  void EditorSystem::markSceneClean(const std::string &path, const char *status) {
+    scenePanelState.currentPath = path;
+    scenePanelState.path = path;
+    scenePanelState.dirty = false;
+    scenePanelState.statusMessage = status ? status : "Ready";
+  }
+
+  void EditorSystem::requestSceneLoad(EditorFrameResult &result) {
+    if (scenePanelState.dirty) {
+      scenePanelState.loadConfirmRequested = true;
+      return;
+    }
+    result.sceneActions.loadRequested = true;
   }
 
   EditorFrameResult EditorSystem::update(

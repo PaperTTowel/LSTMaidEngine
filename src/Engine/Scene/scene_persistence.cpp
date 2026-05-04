@@ -248,23 +248,26 @@ namespace lve {
     }
   }
 
-  void ScenePersistence::saveToFile(SceneSystem &sceneSystem, const std::string &path) {
+  bool ScenePersistence::saveToFile(SceneSystem &sceneSystem, const std::string &path) {
     Scene scene = exportSnapshot(sceneSystem);
     if (!SceneSerializer::saveToFile(scene, path)) {
       std::cerr << "Failed to save scene to " << path << "\n";
+      return false;
     }
+    return true;
   }
 
-  void ScenePersistence::loadFromFile(
+  bool ScenePersistence::loadFromFile(
     SceneSystem &sceneSystem,
     const std::string &path,
     std::optional<LveGameObject::id_t> protectedId) {
     Scene scene{};
     if (!SceneSerializer::loadFromFile(path, scene)) {
       std::cerr << "Failed to load scene from " << path << "\n";
-      return;
+      return false;
     }
     importSnapshot(sceneSystem, scene, protectedId);
+    return true;
   }
 
 } // namespace lve
