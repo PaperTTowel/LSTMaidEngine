@@ -5,6 +5,7 @@
 #include "Engine/Assets/asset_database.hpp"
 #include "Engine/Assets/asset_defaults.hpp"
 #include "Engine/Assets/material_data.hpp"
+#include "Engine/Assets/scene_asset_service.hpp"
 #include "Engine/Scene/scene.hpp"
 #include "Engine/Scene/game_object.hpp"
 #include "Engine/Assets/sprite_animator.hpp"
@@ -14,10 +15,12 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace lve {
+  class SceneDefaults;
+  class ScenePersistence;
+
   class SceneSystem {
   public:
     SceneSystem(
@@ -39,8 +42,8 @@ namespace lve {
     void setActiveMeshPath(const std::string &path);
     void setActiveMaterialPath(const std::string &path);
 
-    AssetDatabase &getAssetDatabase() { return assetDatabase; }
-    const AssetDatabase &getAssetDatabase() const { return assetDatabase; }
+    AssetDatabase &getAssetDatabase() { return assetService.assetDatabase(); }
+    const AssetDatabase &getAssetDatabase() const { return assetService.assetDatabase(); }
 
     SpriteAnimator *getSpriteAnimator() { return spriteAnimator.get(); }
     const SpriteMetadata &getSpriteMetadata() const { return playerMeta; }
@@ -95,20 +98,20 @@ namespace lve {
       const CameraComponent &camera);
 
   private:
+    friend class SceneDefaults;
+    friend class ScenePersistence;
+
     static ObjectState objectStateFromString(const std::string &name);
     static std::string objectStateToString(ObjectState state);
     backend::TextureLoadOptions textureLoadOptionsForAsset(const std::string &assetPath) const;
 
-    backend::RenderAssetFactory &assetFactory;
+    SceneAssetService assetService;
     LveGameObjectManager gameObjectManager;
     AssetDefaults assetDefaults;
-    AssetDatabase assetDatabase;
     SpriteMetadata playerMeta;
     std::unique_ptr<SpriteAnimator> spriteAnimator;
     std::shared_ptr<backend::RenderModel> cubeModel;
     std::shared_ptr<backend::RenderModel> spriteModel;
-    std::unordered_map<std::string, std::shared_ptr<backend::RenderModel>> modelCache;
-    std::unordered_map<std::string, std::shared_ptr<backend::RenderMaterial>> materialCache;
     LveGameObject::id_t characterId{0};
   };
 } // namespace lve

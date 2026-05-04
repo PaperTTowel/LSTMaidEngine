@@ -1,4 +1,9 @@
-#include "keyboard_movement_controller.hpp"
+#include "Engine/Gameplay/keyboard_movement_controller.hpp"
+
+#include <glm/gtc/constants.hpp>
+
+#include <cmath>
+#include <limits>
 
 namespace lve {
 
@@ -18,7 +23,7 @@ namespace lve {
     gameObject.transform.rotation.y = glm::mod(gameObject.transform.rotation.y, glm::two_pi<float>());
 
     float yaw = gameObject.transform.rotation.y;
-    const glm::vec3 forwardDir{sin(yaw), 0.f, cos(yaw)};
+    const glm::vec3 forwardDir{std::sin(yaw), 0.f, std::cos(yaw)};
     const glm::vec3 rightDir{forwardDir.z, 0.f, -forwardDir.x};
     const glm::vec3 upDir{0.f, -1.f, 0.f};
 
@@ -37,7 +42,7 @@ namespace lve {
 
   void CharacterMovementController::moveInPlaneXZ(backend::InputProvider &input, float dt, LveGameObject &character) {
     float yaw = character.transform.rotation.y;
-    const glm::vec3 forwardDir{cos(yaw), 0.f, sin(yaw)};
+    const glm::vec3 forwardDir{std::cos(yaw), 0.f, std::sin(yaw)};
     const glm::vec3 rightDir{forwardDir.z, 0.f, -forwardDir.x};
     const glm::vec3 upDir{0.f, -1.f, 0.f};
 

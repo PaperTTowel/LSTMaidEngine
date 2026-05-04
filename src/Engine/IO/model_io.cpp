@@ -1,7 +1,7 @@
 #include "Engine/IO/model_io.hpp"
 
 #include "Engine/Core/runtime_paths.hpp"
-#include "utils/utils.hpp"
+#include "Engine/Core/hash.hpp"
 
 // libs
 #include <assimp/Importer.hpp>

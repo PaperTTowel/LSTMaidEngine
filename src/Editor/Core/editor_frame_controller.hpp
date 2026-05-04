@@ -4,7 +4,7 @@
 #include "Engine/Rendering/render_backend.hpp"
 #include "Engine/Rendering/runtime_window.hpp"
 #include "Engine/Core/camera.hpp"
-#include "utils/keyboard_movement_controller.hpp"
+#include "Engine/Gameplay/keyboard_movement_controller.hpp"
 
 namespace lve {
   class SceneSystem;

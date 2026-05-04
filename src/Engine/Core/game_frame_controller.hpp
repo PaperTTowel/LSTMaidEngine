@@ -4,7 +4,7 @@
 #include "Engine/Rendering/render_types.hpp"
 #include "Engine/Core/camera.hpp"
 #include "Engine/Core/viewport_info.hpp"
-#include "utils/keyboard_movement_controller.hpp"
+#include "Engine/Gameplay/keyboard_movement_controller.hpp"
 
 #include <cstdint>
 
