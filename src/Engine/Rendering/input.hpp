@@ -6,6 +6,8 @@ namespace lve::backend {
     D,
     W,
     S,
+    Q,
+    E,
     H,
     J,
     K,

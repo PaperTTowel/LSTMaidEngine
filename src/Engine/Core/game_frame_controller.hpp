@@ -23,7 +23,8 @@ namespace lve {
       float frameTime,
       backend::InputProvider &input,
       SceneSystem &sceneSystem,
-      SpriteAnimator *spriteAnimator);
+      SpriteAnimator *spriteAnimator,
+      bool inputEnabled);
 
     GameFrameState updateCamera(
       SceneSystem &sceneSystem,

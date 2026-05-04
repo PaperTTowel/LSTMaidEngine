@@ -7,6 +7,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
+#include <algorithm>
+#include <cmath>
+
 namespace lve {
 
   void EditorFrameController::initialize(
@@ -96,8 +99,23 @@ namespace lve {
     sceneViewInfo = editorResult.sceneView;
     gameViewInfo = editorResult.gameView;
 
+    if (editorResult.focusSelectedRequested && editorResult.selectedObject) {
+      const auto &target = editorResult.selectedObject->transform.translation;
+      const auto &scale = editorResult.selectedObject->transform.scale;
+      const float maxScale = std::max(
+        std::max(std::abs(scale.x), std::abs(scale.y)),
+        std::max(std::abs(scale.z), 1.f));
+      const float distance = std::max(3.f, maxScale * 4.f);
+      const float yaw = viewerObject->transform.rotation.y;
+      const glm::vec3 forward{std::sin(yaw), 0.f, std::cos(yaw)};
+      viewerObject->transform.translation = target - forward * distance;
+      viewerObject->transformDirty = true;
+      editorCamera.setViewYXZ(viewerObject->transform.translation, viewerObject->transform.rotation);
+    }
+
     renderBackend.setWireframe(wireframeEnabled);
     renderBackend.setNormalView(normalViewEnabled);
+    renderBackend.setSceneGrid(editorResult.sceneGridEnabled);
 
     return EditorFrameState{
       editorResult,

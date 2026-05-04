@@ -32,6 +32,21 @@ namespace lve::editor {
       return name == "idle";
     }
 
+    SceneSettingsSnapshot captureSceneSettings(const LveGameObject &obj) {
+      SceneSettingsSnapshot snapshot{};
+      snapshot.color = obj.color;
+      snapshot.objState = obj.objState;
+      snapshot.billboardMode = obj.billboardMode;
+      snapshot.spriteStateName = obj.spriteStateName;
+      if (obj.pointLight) {
+        snapshot.lightIntensity = obj.pointLight->lightIntensity;
+      }
+      if (obj.camera) {
+        snapshot.camera = *obj.camera;
+      }
+      return snapshot;
+    }
+
     const char *typeLabel(const LveGameObject &obj) {
       if (obj.camera) return "Camera";
       if (obj.pointLight) return "Light";
@@ -156,6 +171,7 @@ namespace lve::editor {
     backend::RenderExtent viewportExtent,
     bool *open,
     const GizmoContext &gizmoContext,
+    const GizmoSnapSettings &gizmoSnap,
     int gizmoOperation,
     int gizmoMode,
     int &selectedNodeIndex,
@@ -186,6 +202,7 @@ namespace lve::editor {
       state.transformEditing = false;
       state.nameEditing = false;
       state.nodeOverrideEditing = false;
+      state.sceneSettingsEditing = false;
       state.nodeOverrideEditStart.clear();
       state.gizmoWasUsing = false;
       state.gizmoWasEditingNode = false;
@@ -194,6 +211,7 @@ namespace lve::editor {
       selectedNodeIndex = -1;
     } else if (state.lastSelectedModel != selected->model.get()) {
       state.nodeOverrideEditing = false;
+      state.sceneSettingsEditing = false;
       state.nodeOverrideEditStart.clear();
       state.gizmoWasUsing = false;
       state.gizmoWasEditingNode = false;
@@ -244,6 +262,28 @@ namespace lve::editor {
       }
       state.materialDirty = true;
       return true;
+    };
+
+    auto beginSceneSettingsEdit = [&]() {
+      if (!state.sceneSettingsEditing) {
+        state.sceneSettingsEditing = true;
+        state.sceneSettingsEditStart = captureSceneSettings(*selected);
+      }
+    };
+
+    auto recordSceneSettingsChange = [&](const SceneSettingsSnapshot &before) {
+      if (!actions.sceneSettingsChanged) {
+        actions.beforeSceneSettings = before;
+      }
+      actions.afterSceneSettings = captureSceneSettings(*selected);
+      actions.sceneSettingsChanged = true;
+    };
+
+    auto commitSceneSettingsEdit = [&]() {
+      if (state.sceneSettingsEditing) {
+        recordSceneSettingsChange(state.sceneSettingsEditStart);
+        state.sceneSettingsEditing = false;
+      }
     };
 
     ImGui::Text("ID: %u", selected->getId());
@@ -380,6 +420,21 @@ namespace lve::editor {
 
     bool gizmoUsing = false;
     if (gizmoContext.valid && gizmoContext.drawList) {
+      float snapValues[3]{
+        gizmoSnap.translate,
+        gizmoSnap.translate,
+        gizmoSnap.translate};
+      if (op == ImGuizmo::ROTATE ||
+          op == static_cast<ImGuizmo::OPERATION>(
+            ImGuizmo::ROTATE_X | ImGuizmo::ROTATE_Y | ImGuizmo::ROTATE_Z)) {
+        snapValues[0] = gizmoSnap.rotate;
+        snapValues[1] = gizmoSnap.rotate;
+        snapValues[2] = gizmoSnap.rotate;
+      } else if (op == ImGuizmo::SCALE) {
+        snapValues[0] = gizmoSnap.scale;
+        snapValues[1] = gizmoSnap.scale;
+        snapValues[2] = gizmoSnap.scale;
+      }
       ImGuizmo::Manipulate(
         glm::value_ptr(view),
         glm::value_ptr(gizmoProj),
@@ -387,7 +442,7 @@ namespace lve::editor {
         mode,
         modelArr,
         nullptr,
-        nullptr);
+        gizmoSnap.enabled ? snapValues : nullptr);
 
       gizmoUsing = ImGuizmo::IsUsing();
       if (gizmoUsing) {
@@ -467,11 +522,19 @@ namespace lve::editor {
     if (selected->pointLight) {
       ImGui::Separator();
       ImGui::Text("Light");
-      if (ImGui::ColorEdit3("Color", &selected->color.x)) {
-        actions.sceneSettingsChanged = true;
+      ImGui::ColorEdit3("Color", &selected->color.x);
+      if (ImGui::IsItemActivated()) {
+        beginSceneSettingsEdit();
       }
-      if (ImGui::DragFloat("Intensity", &selected->pointLight->lightIntensity, 0.1f, 0.0f, 100.f)) {
-        actions.sceneSettingsChanged = true;
+      if (ImGui::IsItemDeactivatedAfterEdit()) {
+        commitSceneSettingsEdit();
+      }
+      ImGui::DragFloat("Intensity", &selected->pointLight->lightIntensity, 0.1f, 0.0f, 100.f);
+      if (ImGui::IsItemActivated()) {
+        beginSceneSettingsEdit();
+      }
+      if (ImGui::IsItemDeactivatedAfterEdit()) {
+        commitSceneSettingsEdit();
       }
     }
 
@@ -481,31 +544,50 @@ namespace lve::editor {
       auto &camera = *selected->camera;
       bool active = camera.active;
       if (ImGui::Checkbox("Active (Game View)", &active)) {
+        const auto before = captureSceneSettings(*selected);
         camera.active = active;
         actions.cameraActiveChanged = true;
         actions.cameraActive = active;
+        recordSceneSettingsChange(before);
       }
 
       int projectionMode = (camera.projection == "ortho") ? 1 : 0;
       const char *projectionLabels[] = { "Perspective", "Orthographic" };
       if (ImGui::Combo("Projection", &projectionMode, projectionLabels, IM_ARRAYSIZE(projectionLabels))) {
+        const auto before = captureSceneSettings(*selected);
         camera.projection = (projectionMode == 1) ? "ortho" : "persp";
-        actions.sceneSettingsChanged = true;
+        recordSceneSettingsChange(before);
       }
       if (camera.projection == "ortho") {
-        if (ImGui::DragFloat("Ortho Height", &camera.orthoHeight, 0.1f, 0.1f, 1000.f)) {
-          actions.sceneSettingsChanged = true;
+        ImGui::DragFloat("Ortho Height", &camera.orthoHeight, 0.1f, 0.1f, 1000.f);
+        if (ImGui::IsItemActivated()) {
+          beginSceneSettingsEdit();
+        }
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+          commitSceneSettingsEdit();
         }
       } else {
-        if (ImGui::SliderFloat("FOV", &camera.fov, 20.f, 120.f)) {
-          actions.sceneSettingsChanged = true;
+        ImGui::SliderFloat("FOV", &camera.fov, 20.f, 120.f);
+        if (ImGui::IsItemActivated()) {
+          beginSceneSettingsEdit();
+        }
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+          commitSceneSettingsEdit();
         }
       }
-      if (ImGui::DragFloat("Near", &camera.nearPlane, 0.01f, 0.001f, 10.f)) {
-        actions.sceneSettingsChanged = true;
+      ImGui::DragFloat("Near", &camera.nearPlane, 0.01f, 0.001f, 10.f);
+      if (ImGui::IsItemActivated()) {
+        beginSceneSettingsEdit();
       }
-      if (ImGui::DragFloat("Far", &camera.farPlane, 1.f, 1.f, 10000.f)) {
-        actions.sceneSettingsChanged = true;
+      if (ImGui::IsItemDeactivatedAfterEdit()) {
+        commitSceneSettingsEdit();
+      }
+      ImGui::DragFloat("Far", &camera.farPlane, 1.f, 1.f, 10000.f);
+      if (ImGui::IsItemActivated()) {
+        beginSceneSettingsEdit();
+      }
+      if (ImGui::IsItemDeactivatedAfterEdit()) {
+        commitSceneSettingsEdit();
       }
     }
 
@@ -539,6 +621,7 @@ namespace lve::editor {
         labels.reserve(stateNames.size());
         for (auto &s : stateNames) labels.push_back(s.c_str());
         if (ImGui::Combo("State", &currentIndex, labels.data(), static_cast<int>(labels.size()))) {
+          const auto before = captureSceneSettings(*selected);
           const std::string &chosen = stateNames[currentIndex];
           selected->spriteStateName = chosen;
           if (isWalkingStateName(chosen)) {
@@ -547,15 +630,16 @@ namespace lve::editor {
             selected->objState = ObjectState::IDLE;
           }
           animator->applySpriteState(*selected, chosen);
-          actions.sceneSettingsChanged = true;
+          recordSceneSettingsChange(before);
         }
       }
 
       int mode = static_cast<int>(selected->billboardMode);
       const char* modeLabels[] = { "None", "Cylindrical", "Spherical" };
       if (ImGui::Combo("Billboard", &mode, modeLabels, IM_ARRAYSIZE(modeLabels))) {
+        const auto before = captureSceneSettings(*selected);
         selected->billboardMode = static_cast<BillboardMode>(mode);
-        actions.sceneSettingsChanged = true;
+        recordSceneSettingsChange(before);
       }
     }
 

@@ -30,9 +30,77 @@ namespace lve::editor {
     return snapshot;
   }
 
+  void ApplySnapshot(
+    SceneSystem &sceneSystem,
+    SpriteAnimator *&animator,
+    const GameObjectSnapshot &snapshot) {
+    auto *obj = sceneSystem.findObject(snapshot.id);
+    const bool typeMatches = obj &&
+      snapshot.isSprite == obj->isSprite &&
+      snapshot.isPointLight == (obj->pointLight != nullptr) &&
+      snapshot.isCamera == obj->camera.has_value();
+
+    if (!typeMatches) {
+      if (obj) {
+        sceneSystem.destroyObject(snapshot.id);
+      }
+      RestoreSnapshot(sceneSystem, animator, snapshot);
+      return;
+    }
+
+    obj->transform = snapshot.transform;
+    obj->color = snapshot.color;
+    obj->name = snapshot.name;
+    obj->objState = snapshot.objState;
+    obj->billboardMode = snapshot.billboardMode;
+    obj->spriteMetaPath = snapshot.spriteMetaPath;
+    obj->spriteStateName = snapshot.spriteStateName;
+    obj->modelPath = snapshot.modelPath;
+    obj->nodeOverrides = snapshot.nodeOverrides;
+    obj->transformDirty = true;
+
+    if (snapshot.isPointLight && obj->pointLight) {
+      obj->pointLight->lightIntensity = snapshot.lightIntensity;
+      return;
+    }
+
+    if (snapshot.isCamera && obj->camera) {
+      obj->camera = snapshot.camera;
+      if (snapshot.camera.active) {
+        sceneSystem.setActiveCamera(obj->getId(), true);
+      }
+      return;
+    }
+
+    if (snapshot.isSprite) {
+      if (!snapshot.spriteMetaPath.empty() && sceneSystem.setActiveSpriteMetadata(snapshot.spriteMetaPath)) {
+        animator = sceneSystem.getSpriteAnimator();
+      }
+      if (animator) {
+        if (!obj->spriteStateName.empty()) {
+          animator->applySpriteState(*obj, obj->spriteStateName);
+        } else {
+          animator->applySpriteState(*obj, obj->objState);
+        }
+      }
+      return;
+    }
+
+    if (!snapshot.modelPath.empty()) {
+      obj->model = sceneSystem.loadModelCached(snapshot.modelPath);
+      obj->enableTextureType =
+        obj->model && obj->model->hasAnyDiffuseTexture() ? 1 : 0;
+      sceneSystem.ensureNodeOverrides(*obj);
+      obj->nodeOverrides = snapshot.nodeOverrides;
+    }
+    if (!sceneSystem.applyMaterialToObject(*obj, snapshot.materialPath)) {
+      sceneSystem.applyMaterialToObject(*obj, {});
+    }
+  }
+
   void RestoreSnapshot(
     SceneSystem &sceneSystem,
-    SpriteAnimator *animator,
+    SpriteAnimator *&animator,
     const GameObjectSnapshot &snapshot) {
     if (snapshot.isPointLight) {
       auto &obj = sceneSystem.createPointLightObjectWithId(
@@ -60,6 +128,9 @@ namespace lve::editor {
       obj.name = snapshot.name;
       if (!snapshot.spriteStateName.empty()) {
         obj.spriteStateName = snapshot.spriteStateName;
+      }
+      if (!snapshot.spriteMetaPath.empty() && sceneSystem.setActiveSpriteMetadata(snapshot.spriteMetaPath)) {
+        animator = sceneSystem.getSpriteAnimator();
       }
       if (animator) {
         if (!obj.spriteStateName.empty()) {
@@ -102,6 +173,48 @@ namespace lve::editor {
       obj.nodeOverrides = snapshot.nodeOverrides;
     }
     obj.transformDirty = true;
+  }
+
+  LveGameObject &CloneSnapshot(
+    SceneSystem &sceneSystem,
+    SpriteAnimator *&animator,
+    const GameObjectSnapshot &snapshot) {
+    if (snapshot.isPointLight) {
+      auto &obj = sceneSystem.createPointLightObject(snapshot.transform.translation);
+      const auto id = obj.getId();
+      GameObjectSnapshot clone = snapshot;
+      clone.id = id;
+      ApplySnapshot(sceneSystem, animator, clone);
+      return *sceneSystem.findObject(id);
+    }
+
+    if (snapshot.isSprite) {
+      auto &obj = sceneSystem.createSpriteObject(
+        snapshot.transform.translation,
+        snapshot.objState,
+        snapshot.spriteMetaPath);
+      const auto id = obj.getId();
+      GameObjectSnapshot clone = snapshot;
+      clone.id = id;
+      ApplySnapshot(sceneSystem, animator, clone);
+      return *sceneSystem.findObject(id);
+    }
+
+    if (snapshot.isCamera) {
+      auto &obj = sceneSystem.createCameraObject(snapshot.transform.translation);
+      const auto id = obj.getId();
+      GameObjectSnapshot clone = snapshot;
+      clone.id = id;
+      ApplySnapshot(sceneSystem, animator, clone);
+      return *sceneSystem.findObject(id);
+    }
+
+    auto &obj = sceneSystem.createMeshObject(snapshot.transform.translation, snapshot.modelPath);
+    const auto id = obj.getId();
+    GameObjectSnapshot clone = snapshot;
+    clone.id = id;
+    ApplySnapshot(sceneSystem, animator, clone);
+    return *sceneSystem.findObject(id);
   }
 
 } // namespace lve::editor

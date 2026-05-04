@@ -34,6 +34,7 @@ namespace lve::backend {
 
     void setWireframe(bool enabled) override;
     void setNormalView(bool enabled) override;
+    void setSceneGrid(bool enabled) override;
 
     void renderSceneView(
       float frameTime,

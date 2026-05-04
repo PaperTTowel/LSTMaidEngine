@@ -44,6 +44,7 @@ namespace lve {
         ImGui::EndPopup();
       }
     }
+
   } // namespace
 
   namespace fs = std::filesystem;
@@ -218,6 +219,23 @@ namespace lve {
         ImGui::SameLine();
         ImGui::Separator();
         ImGui::SameLine();
+        ImGui::Checkbox("Grid", &showSceneGrid);
+        ImGui::SameLine();
+        ImGui::Checkbox("Snap", &gizmoSnap.enabled);
+        if (gizmoSnap.enabled) {
+          ImGui::SameLine();
+          ImGui::SetNextItemWidth(70.f);
+          if (gizmoOperation == static_cast<int>(ImGuizmo::ROTATE)) {
+            ImGui::DragFloat("##SnapRotate", &gizmoSnap.rotate, 1.f, 1.f, 90.f, "%.0f deg");
+          } else if (gizmoOperation == static_cast<int>(ImGuizmo::SCALE)) {
+            ImGui::DragFloat("##SnapScale", &gizmoSnap.scale, 0.01f, 0.01f, 10.f, "%.2f");
+          } else {
+            ImGui::DragFloat("##SnapTranslate", &gizmoSnap.translate, 0.05f, 0.01f, 100.f, "%.2f");
+          }
+        }
+        ImGui::SameLine();
+        ImGui::Separator();
+        ImGui::SameLine();
         if (ImGui::RadioButton("Local", gizmoMode == static_cast<int>(ImGuizmo::LOCAL))) {
           gizmoMode = static_cast<int>(ImGuizmo::LOCAL);
         }
@@ -248,11 +266,47 @@ namespace lve {
         gizmoContext.width = avail.x;
         gizmoContext.height = avail.y;
         gizmoContext.valid = (avail.x > 0 && avail.y > 0);
+        if (result.sceneView.hovered &&
+            !io.WantTextInput &&
+            !io.WantCaptureKeyboard &&
+            ImGui::IsKeyPressed(ImGuiKey_Tab, false)) {
+          if (io.KeyShift) {
+            if (gizmoOperation == static_cast<int>(ImGuizmo::TRANSLATE)) {
+              gizmoOperation = static_cast<int>(ImGuizmo::SCALE);
+            } else if (gizmoOperation == static_cast<int>(ImGuizmo::SCALE)) {
+              gizmoOperation = static_cast<int>(ImGuizmo::ROTATE);
+            } else {
+              gizmoOperation = static_cast<int>(ImGuizmo::TRANSLATE);
+            }
+          } else {
+            if (gizmoOperation == static_cast<int>(ImGuizmo::TRANSLATE)) {
+              gizmoOperation = static_cast<int>(ImGuizmo::ROTATE);
+            } else if (gizmoOperation == static_cast<int>(ImGuizmo::ROTATE)) {
+              gizmoOperation = static_cast<int>(ImGuizmo::SCALE);
+            } else {
+              gizmoOperation = static_cast<int>(ImGuizmo::TRANSLATE);
+            }
+          }
+        }
+        if (result.sceneView.hovered &&
+            !io.WantTextInput &&
+            !io.WantCaptureKeyboard &&
+            ImGui::IsKeyPressed(ImGuiKey_F, false)) {
+          result.focusSelectedRequested = true;
+        }
+        if (result.sceneView.hovered &&
+            !io.WantTextInput &&
+            !io.WantCaptureKeyboard &&
+            io.KeyCtrl &&
+            ImGui::IsKeyPressed(ImGuiKey_D, false)) {
+          result.duplicateSelectedRequested = true;
+        }
         if (sceneViewTextureId && result.sceneView.width > 0 && result.sceneView.height > 0) {
           ImGui::Image(sceneViewTextureId, avail);
         } else {
           ImGui::TextUnformatted("Scene view not ready");
         }
+        result.sceneGridEnabled = showSceneGrid;
 
         if (gizmoContext.valid && gizmoContext.drawList) {
           ImDrawList *drawList = ImGui::GetForegroundDrawList(ImGui::GetWindowViewport());
@@ -292,6 +346,9 @@ namespace lve {
         result.gameView.width = static_cast<uint32_t>(avail.x > 0 ? avail.x : 0);
         result.gameView.height = static_cast<uint32_t>(avail.y > 0 ? avail.y : 0);
         result.gameView.visible = true;
+        result.gameView.x = contentPos.x;
+        result.gameView.y = contentPos.y;
+        result.gameView.hovered = ImGui::IsWindowHovered();
         if (gameViewTextureId && result.gameView.width > 0 && result.gameView.height > 0) {
           ImGui::Image(gameViewTextureId, avail);
         } else {
@@ -412,6 +469,7 @@ namespace lve {
         viewportExtent,
         &showInspector,
         gizmoContext,
+        gizmoSnap,
         gizmoOperation,
         gizmoMode,
         hierarchyState.selectedNodeIndex,

@@ -8,12 +8,12 @@ namespace lve {
 
   public:
     struct KeyMappings {
-      backend::KeyCode moveLeft = backend::KeyCode::H;
-      backend::KeyCode moveRight = backend::KeyCode::K;
-      backend::KeyCode moveForward = backend::KeyCode::U;
-      backend::KeyCode moveBackward = backend::KeyCode::J;
-      backend::KeyCode moveUp = backend::KeyCode::I;
-      backend::KeyCode moveDown = backend::KeyCode::Y;
+      backend::KeyCode moveLeft = backend::KeyCode::A;
+      backend::KeyCode moveRight = backend::KeyCode::D;
+      backend::KeyCode moveForward = backend::KeyCode::W;
+      backend::KeyCode moveBackward = backend::KeyCode::S;
+      backend::KeyCode moveUp = backend::KeyCode::E;
+      backend::KeyCode moveDown = backend::KeyCode::Q;
       backend::KeyCode lookLeft = backend::KeyCode::Left;
       backend::KeyCode lookRight = backend::KeyCode::Right;
       backend::KeyCode lookUp = backend::KeyCode::Up;

@@ -80,6 +80,10 @@ namespace lve::backend {
     renderContext.simpleSystem().setNormalView(enabled);
   }
 
+  void VulkanRenderBackend::setSceneGrid(bool enabled) {
+    renderContext.gridSystem().setEnabled(enabled);
+  }
+
   void VulkanRenderBackend::renderSceneView(
     float frameTime,
     LveCamera &camera,
@@ -105,6 +109,7 @@ namespace lve::backend {
     renderContext.updateGlobalUbo(frameInfo.frameIndex, 0, ubo);
 
     renderContext.simpleSystem().renderGameObjects(frameInfo);
+    renderContext.gridSystem().render(frameInfo);
     renderContext.pointLightSystem().render(frameInfo);
     renderContext.spriteSystem().renderSprites(frameInfo);
     renderContext.endSceneViewRenderPass(vkCommandBuffer);

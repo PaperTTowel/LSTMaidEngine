@@ -6,6 +6,10 @@
 
 #include <glm/glm.hpp>
 
+#include <optional>
+#include <string>
+#include <vector>
+
 namespace lve::backend {
   class EditorRenderBackend;
 }
@@ -21,6 +25,13 @@ namespace lve::editor {
     bool valid{false};
   };
 
+  struct GizmoSnapSettings {
+    bool enabled{false};
+    float translate{0.5f};
+    float rotate{15.f};
+    float scale{0.1f};
+  };
+
   struct TransformSnapshot {
     glm::vec3 translation{};
     glm::vec3 rotation{};
@@ -33,6 +44,15 @@ namespace lve::editor {
     backend::RenderExtent extent{};
   };
 
+  struct SceneSettingsSnapshot {
+    glm::vec3 color{1.f};
+    float lightIntensity{1.f};
+    ObjectState objState{ObjectState::IDLE};
+    BillboardMode billboardMode{BillboardMode::None};
+    std::string spriteStateName{};
+    std::optional<CameraComponent> camera{};
+  };
+
   struct InspectorState {
     LveGameObject::id_t lastSelectedId{0};
     bool transformEditing{false};
@@ -41,6 +61,8 @@ namespace lve::editor {
     std::string nameEditStart{};
     bool nodeOverrideEditing{false};
     std::vector<NodeTransformOverride> nodeOverrideEditStart{};
+    bool sceneSettingsEditing{false};
+    SceneSettingsSnapshot sceneSettingsEditStart{};
     bool gizmoWasUsing{false};
     bool gizmoWasEditingNode{false};
     const backend::RenderModel *lastSelectedModel{nullptr};
@@ -89,6 +111,8 @@ namespace lve::editor {
     bool cameraActiveChanged{false};
     bool cameraActive{false};
     bool sceneSettingsChanged{false};
+    SceneSettingsSnapshot beforeSceneSettings{};
+    SceneSettingsSnapshot afterSceneSettings{};
   };
 
   struct MaterialPickResult {
@@ -107,6 +131,7 @@ namespace lve::editor {
     backend::RenderExtent viewportExtent,
     bool *open,
     const GizmoContext &gizmoContext,
+    const GizmoSnapSettings &gizmoSnap,
     int gizmoOperation,
     int gizmoMode,
     int &selectedNodeIndex,

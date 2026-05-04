@@ -92,6 +92,10 @@ namespace lve {
       lveDevice,
       offscreenRenderPass,
       globalSetLayout->getDescriptorSetLayout());
+    gridRenderSystem = std::make_unique<GridRenderSystem>(
+      lveDevice,
+      offscreenRenderPass,
+      globalSetLayout->getDescriptorSetLayout());
   }
 
   VkCommandBuffer RenderContext::beginFrame() {

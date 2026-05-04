@@ -32,9 +32,17 @@ namespace lve::editor {
   };
 
   GameObjectSnapshot CaptureSnapshot(const LveGameObject &obj);
+  void ApplySnapshot(
+    SceneSystem &sceneSystem,
+    SpriteAnimator *&animator,
+    const GameObjectSnapshot &snapshot);
   void RestoreSnapshot(
     SceneSystem &sceneSystem,
-    SpriteAnimator *animator,
+    SpriteAnimator *&animator,
+    const GameObjectSnapshot &snapshot);
+  LveGameObject &CloneSnapshot(
+    SceneSystem &sceneSystem,
+    SpriteAnimator *&animator,
     const GameObjectSnapshot &snapshot);
 
 } // namespace lve::editor

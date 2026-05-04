@@ -6,6 +6,7 @@
 #include "Editor/Workflow/resource_browser_panel.hpp"
 #include "Editor/UI/inspector_panel.hpp"
 #include "Editor/History/editor_history.hpp"
+#include "Editor/History/editor_snapshot.hpp"
 #include "Editor/Core/viewport_info.hpp"
 
 // std
@@ -30,6 +31,11 @@ namespace lve {
     int redoSteps{0};
     ViewportInfo sceneView{};
     ViewportInfo gameView{};
+    std::optional<editor::GameObjectSnapshot> selectedSnapshotBeforeUi{};
+    std::optional<LveGameObject::id_t> activeCameraBeforeUi{};
+    bool focusSelectedRequested{false};
+    bool duplicateSelectedRequested{false};
+    bool sceneGridEnabled{true};
   };
 
   class EditorSystem {
@@ -109,6 +115,8 @@ namespace lve {
     bool showSceneView{true};
     bool showGameView{true};
     bool showRendererDebug{false};
+    bool showSceneGrid{true};
+    editor::GizmoSnapSettings gizmoSnap{};
     editor::FileDialogState fileDialogState;
     editor::MaterialPickResult pendingMaterialPick{};
     editor::MaterialTextureSlot pendingMaterialPickSlot{editor::MaterialTextureSlot::BaseColor};

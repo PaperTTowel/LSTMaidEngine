@@ -77,7 +77,7 @@ find_program(GLSL_VALIDATOR glslangValidator HINTS
     $ENV{VULKAN_SDK}/Bin32/
 )
 
-file(GLOB_RECURSE GLSL_SOURCE_FILES
+file(GLOB_RECURSE GLSL_SOURCE_FILES CONFIGURE_DEPENDS
     "${PROJECT_SOURCE_DIR}/src/Backends/Vulkan/Shaders/*.frag"
     "${PROJECT_SOURCE_DIR}/src/Backends/Vulkan/Shaders/*.vert"
 )

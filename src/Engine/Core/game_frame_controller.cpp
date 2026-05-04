@@ -14,7 +14,8 @@ namespace lve {
     float frameTime,
     backend::InputProvider &input,
     SceneSystem &sceneSystem,
-    SpriteAnimator *spriteAnimator) {
+    SpriteAnimator *spriteAnimator,
+    bool inputEnabled) {
     const auto characterId = sceneSystem.getCharacterId();
     auto *characterPtr = sceneSystem.findObject(characterId);
     if (!characterPtr) {
@@ -23,7 +24,11 @@ namespace lve {
     }
 
     auto &character = *characterPtr;
-    characterController.moveInPlaneXZ(input, frameTime, character);
+    if (inputEnabled) {
+      characterController.moveInPlaneXZ(input, frameTime, character);
+    } else {
+      character.objState = ObjectState::IDLE;
+    }
     character.transformDirty = true;
     if (spriteAnimator) {
       const char *stateName = (character.objState == ObjectState::WALKING) ? "walking" : "idle";

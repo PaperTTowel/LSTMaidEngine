@@ -71,6 +71,14 @@ namespace lve {
 
     std::vector<LveGameObject*> objects;
     sceneSystem.collectObjects(objects);
+    if (hierarchyState.selectedId) {
+      if (auto *selected = sceneSystem.findObject(*hierarchyState.selectedId)) {
+        result.selectedSnapshotBeforeUi = editor::CaptureSnapshot(*selected);
+      }
+    }
+    if (auto *activeCamera = sceneSystem.findActiveCamera()) {
+      result.activeCameraBeforeUi = activeCamera->getId();
+    }
 
     buildFrameUI(
       result,

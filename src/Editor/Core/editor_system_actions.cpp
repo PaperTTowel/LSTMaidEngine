@@ -21,6 +21,67 @@
 
 namespace lve {
   namespace fs = std::filesystem;
+
+  namespace {
+    bool transformsEqual(const TransformComponent &a, const TransformComponent &b) {
+      return a.translation == b.translation &&
+        a.rotation == b.rotation &&
+        a.scale == b.scale;
+    }
+
+    bool nodeOverridesEqual(
+      const std::vector<NodeTransformOverride> &a,
+      const std::vector<NodeTransformOverride> &b) {
+      if (a.size() != b.size()) return false;
+      for (std::size_t i = 0; i < a.size(); ++i) {
+        if (a[i].enabled != b[i].enabled ||
+            !transformsEqual(a[i].transform, b[i].transform)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    bool snapshotsEqual(
+      const editor::GameObjectSnapshot &a,
+      const editor::GameObjectSnapshot &b) {
+      return a.id == b.id &&
+        a.isSprite == b.isSprite &&
+        a.isPointLight == b.isPointLight &&
+        a.isCamera == b.isCamera &&
+        transformsEqual(a.transform, b.transform) &&
+        a.color == b.color &&
+        a.lightIntensity == b.lightIntensity &&
+        a.objState == b.objState &&
+        a.billboardMode == b.billboardMode &&
+        a.spriteMetaPath == b.spriteMetaPath &&
+        a.spriteStateName == b.spriteStateName &&
+        a.modelPath == b.modelPath &&
+        a.materialPath == b.materialPath &&
+        a.camera.projection == b.camera.projection &&
+        a.camera.fov == b.camera.fov &&
+        a.camera.orthoHeight == b.camera.orthoHeight &&
+        a.camera.nearPlane == b.camera.nearPlane &&
+        a.camera.farPlane == b.camera.farPlane &&
+        a.camera.active == b.camera.active &&
+        nodeOverridesEqual(a.nodeOverrides, b.nodeOverrides) &&
+        a.name == b.name;
+    }
+
+    void applySceneSettingsToSnapshot(
+      editor::GameObjectSnapshot &snapshot,
+      const editor::SceneSettingsSnapshot &settings) {
+      snapshot.color = settings.color;
+      snapshot.lightIntensity = settings.lightIntensity;
+      snapshot.objState = settings.objState;
+      snapshot.billboardMode = settings.billboardMode;
+      snapshot.spriteStateName = settings.spriteStateName;
+      if (settings.camera) {
+        snapshot.camera = *settings.camera;
+      }
+    }
+  } // namespace
+
   bool EditorSystem::applyHistoryActions(
     EditorFrameResult &result,
     SceneSystem &sceneSystem) {
@@ -131,6 +192,24 @@ namespace lve {
     SceneSystem &sceneSystem,
     SpriteAnimator *&animator,
     editor::ResourceBrowserState &resourceBrowserState) {
+    auto pushObjectEdit = [&](const char *label,
+                              const editor::GameObjectSnapshot &before,
+                              const editor::GameObjectSnapshot &after) {
+      if (snapshotsEqual(before, after)) {
+        return;
+      }
+      history.push({
+        label,
+        [&, before]() {
+          editor::ApplySnapshot(sceneSystem, animator, before);
+          setSelectedId(before.id);
+        },
+        [&, after]() {
+          editor::ApplySnapshot(sceneSystem, animator, after);
+          setSelectedId(after.id);
+        }});
+    };
+
     if (result.resourceActions.setActiveSpriteMeta) {
       if (sceneSystem.setActiveSpriteMetadata(resourceBrowserState.activeSpriteMetaPath)) {
         animator = sceneSystem.getSpriteAnimator();
@@ -151,6 +230,7 @@ namespace lve {
     if (result.resourceActions.applySpriteMetaToSelection &&
         result.selectedObject &&
         result.selectedObject->isSprite) {
+      const auto before = editor::CaptureSnapshot(*result.selectedObject);
       if (sceneSystem.setActiveSpriteMetadata(resourceBrowserState.activeSpriteMetaPath)) {
         result.selectedObject->spriteMetaPath = resourceBrowserState.activeSpriteMetaPath;
         if (animator) {
@@ -162,6 +242,8 @@ namespace lve {
           }
         }
         animator = sceneSystem.getSpriteAnimator();
+        const auto after = editor::CaptureSnapshot(*result.selectedObject);
+        pushObjectEdit("Sprite Metadata", before, after);
         markSceneDirty("Sprite metadata changed");
       }
     }
@@ -173,6 +255,7 @@ namespace lve {
         ? "Assets/models/colored_cube.obj"
         : resourceBrowserState.activeMeshPath;
       try {
+        const auto before = editor::CaptureSnapshot(*result.selectedObject);
         result.selectedObject->model = sceneSystem.loadModelCached(meshPath);
         result.selectedObject->modelPath = meshPath;
         result.selectedObject->enableTextureType =
@@ -183,6 +266,8 @@ namespace lve {
         if (!result.selectedObject->materialPath.empty()) {
           sceneSystem.applyMaterialToObject(*result.selectedObject, result.selectedObject->materialPath);
         }
+        const auto after = editor::CaptureSnapshot(*result.selectedObject);
+        pushObjectEdit("Mesh", before, after);
         markSceneDirty("Mesh changed");
       } catch (const std::exception &e) {
         std::cerr << "Failed to load mesh " << meshPath << ": " << e.what() << "\n";
@@ -192,9 +277,12 @@ namespace lve {
     if (result.resourceActions.applyMaterialToSelection &&
         result.selectedObject &&
         result.selectedObject->model) {
+      const auto before = editor::CaptureSnapshot(*result.selectedObject);
       if (!sceneSystem.applyMaterialToObject(*result.selectedObject, resourceBrowserState.activeMaterialPath)) {
         std::cerr << "Failed to apply material " << resourceBrowserState.activeMaterialPath << "\n";
       } else {
+        const auto after = editor::CaptureSnapshot(*result.selectedObject);
+        pushObjectEdit("Material", before, after);
         markSceneDirty("Material changed");
       }
     }
@@ -205,22 +293,60 @@ namespace lve {
     SceneSystem &sceneSystem,
     SpriteAnimator *&animator,
     editor::ResourceBrowserState &resourceBrowserState) {
+    auto pushObjectEdit = [&](const char *label,
+                              const editor::GameObjectSnapshot &before,
+                              const editor::GameObjectSnapshot &after,
+                              std::optional<LveGameObject::id_t> activeCameraBefore = std::nullopt) {
+      if (snapshotsEqual(before, after)) {
+        return false;
+      }
+      history.push({
+        label,
+        [&, before, activeCameraBefore]() {
+          editor::ApplySnapshot(sceneSystem, animator, before);
+          if (activeCameraBefore) {
+            sceneSystem.setActiveCamera(*activeCameraBefore, true);
+          }
+          setSelectedId(before.id);
+        },
+        [&, after]() {
+          editor::ApplySnapshot(sceneSystem, animator, after);
+          setSelectedId(after.id);
+        }});
+      return true;
+    };
+
     if (result.inspectorActions.cameraActiveChanged &&
         result.selectedObject &&
         result.selectedObject->camera) {
       sceneSystem.setActiveCamera(
         result.selectedObject->getId(),
         result.inspectorActions.cameraActive);
-      markSceneDirty("Active camera changed");
     }
 
-    if (result.inspectorActions.sceneSettingsChanged && result.selectedObject) {
-      markSceneDirty("Scene settings changed");
+    if ((result.inspectorActions.cameraActiveChanged ||
+         result.inspectorActions.sceneSettingsChanged) &&
+        result.selectedObject &&
+        result.selectedSnapshotBeforeUi) {
+      auto before = *result.selectedSnapshotBeforeUi;
+      applySceneSettingsToSnapshot(before, result.inspectorActions.beforeSceneSettings);
+      const auto after = editor::CaptureSnapshot(*result.selectedObject);
+      if (pushObjectEdit(
+            "Object Settings",
+            before,
+            after,
+            result.activeCameraBeforeUi)) {
+        markSceneDirty(
+          result.inspectorActions.cameraActiveChanged
+            ? "Active camera changed"
+            : "Scene settings changed");
+      }
     }
 
     if (result.inspectorActions.materialPreviewRequested &&
         result.selectedObject &&
         result.selectedObject->model) {
+      const auto before = editor::CaptureSnapshot(*result.selectedObject);
       const std::string &path = result.inspectorActions.materialPath;
       if (!path.empty()) {
         sceneSystem.updateMaterialFromData(path, result.inspectorActions.materialData);
@@ -228,7 +354,10 @@ namespace lve {
           std::cerr << "Failed to apply material " << path << "\n";
         } else {
           resourceBrowserState.activeMaterialPath = path;
-          markSceneDirty("Material changed");
+          const auto after = editor::CaptureSnapshot(*result.selectedObject);
+          if (pushObjectEdit("Material", before, after)) {
+            markSceneDirty("Material changed");
+          }
         }
       }
     }
@@ -253,25 +382,34 @@ namespace lve {
     if (result.inspectorActions.materialClearRequested &&
         result.selectedObject &&
         result.selectedObject->model) {
+      const auto before = editor::CaptureSnapshot(*result.selectedObject);
       sceneSystem.applyMaterialToObject(*result.selectedObject, {});
-      markSceneDirty("Material cleared");
+      const auto after = editor::CaptureSnapshot(*result.selectedObject);
+      if (pushObjectEdit("Material Clear", before, after)) {
+        markSceneDirty("Material cleared");
+      }
     }
 
     if (result.inspectorActions.materialLoadRequested &&
         result.selectedObject &&
         result.selectedObject->model) {
+      const auto before = editor::CaptureSnapshot(*result.selectedObject);
       const std::string &path = result.inspectorActions.materialPath;
       if (!sceneSystem.applyMaterialToObject(*result.selectedObject, path)) {
         std::cerr << "Failed to apply material " << path << "\n";
       } else {
         resourceBrowserState.activeMaterialPath = path;
-        markSceneDirty("Material changed");
+        const auto after = editor::CaptureSnapshot(*result.selectedObject);
+        if (pushObjectEdit("Material", before, after)) {
+          markSceneDirty("Material changed");
+        }
       }
     }
 
     if (result.inspectorActions.materialSaveRequested &&
         result.selectedObject &&
         result.selectedObject->model) {
+      const auto before = editor::CaptureSnapshot(*result.selectedObject);
       const std::string &path = result.inspectorActions.materialPath;
       std::string error;
       if (!saveMaterialToFile(path, result.inspectorActions.materialData, &error)) {
@@ -287,7 +425,10 @@ namespace lve {
           std::cerr << "Failed to apply material " << path << "\n";
         } else {
           resourceBrowserState.activeMaterialPath = path;
-          markSceneDirty("Material changed");
+          const auto after = editor::CaptureSnapshot(*result.selectedObject);
+          if (pushObjectEdit("Material", before, after)) {
+            markSceneDirty("Material changed");
+          }
         }
       }
     }
@@ -535,6 +676,10 @@ namespace lve {
         break;
       }
       case editor::HierarchyCreateRequest::Camera: {
+        std::optional<LveGameObject::id_t> activeCameraBeforeCreate{};
+        if (auto *activeCamera = sceneSystem.findActiveCamera()) {
+          activeCameraBeforeCreate = activeCamera->getId();
+        }
         auto &obj = sceneSystem.createCameraObject(spawnPos);
         sceneSystem.setActiveCamera(obj.getId(), true);
         setSelectedId(obj.getId());
@@ -544,8 +689,11 @@ namespace lve {
           const editor::GameObjectSnapshot snapshot = editor::CaptureSnapshot(obj);
           history.push({
             "Create Camera",
-            [&, id = obj.getId()]() {
+            [&, id = obj.getId(), activeCameraBeforeCreate]() {
               sceneSystem.destroyObject(id);
+              if (activeCameraBeforeCreate) {
+                sceneSystem.setActiveCamera(*activeCameraBeforeCreate, true);
+              }
             },
             [&, snapshot]() {
               editor::RestoreSnapshot(sceneSystem, animator, snapshot);
@@ -556,6 +704,39 @@ namespace lve {
       }
       case editor::HierarchyCreateRequest::None:
       default: break;
+    }
+
+    if (result.duplicateSelectedRequested) {
+      auto selectedId = getSelectedId();
+      if (selectedId && *selectedId != protectedId) {
+        if (auto *obj = sceneSystem.findObject(*selectedId)) {
+          auto cloneSource = editor::CaptureSnapshot(*obj);
+          cloneSource.id = 0;
+          cloneSource.name = cloneSource.name.empty()
+            ? "Duplicate"
+            : cloneSource.name + " Copy";
+          cloneSource.transform.translation += glm::vec3{0.5f, 0.f, 0.5f};
+          if (cloneSource.isCamera) {
+            cloneSource.camera.active = false;
+          }
+          auto &duplicate = editor::CloneSnapshot(sceneSystem, animator, cloneSource);
+          const auto duplicateSnapshot = editor::CaptureSnapshot(duplicate);
+          setSelectedId(duplicate.getId());
+          markSceneDirty("Object duplicated");
+          if (!historyTriggered) {
+            history.push({
+              "Duplicate Object",
+              [&, id = duplicate.getId()]() {
+                sceneSystem.destroyObject(id);
+                setSelectedId(std::nullopt);
+              },
+              [&, duplicateSnapshot]() {
+                editor::RestoreSnapshot(sceneSystem, animator, duplicateSnapshot);
+                setSelectedId(duplicateSnapshot.id);
+              }});
+          }
+        }
+      }
     }
 
     if (result.hierarchyActions.deleteSelected) {

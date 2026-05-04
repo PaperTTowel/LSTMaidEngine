@@ -4,6 +4,7 @@
 #include "Backends/Vulkan/Core/device.hpp"
 #include "Backends/Vulkan/Core/buffer.hpp"
 #include "Backends/Vulkan/Render/frame_info.hpp"
+#include "Backends/Vulkan/Render/grid_render_system.hpp"
 #include "Backends/Vulkan/Render/point_light_system.hpp"
 #include "Backends/Vulkan/Render/renderer.hpp"
 #include "Backends/Vulkan/Render/simple_render_system.hpp"
@@ -54,6 +55,7 @@ namespace lve {
     SimpleRenderSystem &simpleSystem() { return *simpleRenderSystem; }
     SpriteRenderSystem &spriteSystem() { return *spriteRenderSystem; }
     PointLightSystem &pointLightSystem() { return *pointLightSystemPtr; }
+    GridRenderSystem &gridSystem() { return *gridRenderSystem; }
 
   private:
     struct OffscreenTarget {
@@ -99,6 +101,7 @@ namespace lve {
     std::unique_ptr<SimpleRenderSystem> simpleRenderSystem;
     std::unique_ptr<SpriteRenderSystem> spriteRenderSystem;
     std::unique_ptr<PointLightSystem> pointLightSystemPtr;
+    std::unique_ptr<GridRenderSystem> gridRenderSystem;
 
     VkRenderPass offscreenRenderPass{VK_NULL_HANDLE};
     VkFormat offscreenColorFormat{VK_FORMAT_UNDEFINED};

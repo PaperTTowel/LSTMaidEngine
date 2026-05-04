@@ -40,6 +40,7 @@ namespace lve::backend {
 
     virtual void setWireframe(bool enabled) = 0;
     virtual void setNormalView(bool enabled) = 0;
+    virtual void setSceneGrid(bool enabled) = 0;
 
     virtual void renderSceneView(
       float frameTime,
